@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Run Plugin" type="GradleRunConfiguration" factoryName="Gradle">
-    <log_file alias="IDE logs" path="$PROJECT_DIR$/build/idea-sandbox/*/log/idea.log" show_all="true" />
+  <configuration default="false" name="Run Plugin With RustRover" type="GradleRunConfiguration" factoryName="Gradle">
+    <log_file alias="idea.log" path="$PROJECT_DIR$/build/cmdlineargs-plugin/idea-sandbox/rider-sandbox-*/log_runRider/idea.log" />
     <ExternalSystemSettings>
       <option name="executionName" />
       <option name="externalProjectPath" value="$PROJECT_DIR$" />
@@ -11,7 +11,7 @@
       </option>
       <option name="taskNames">
         <list>
-          <option value="runIde" />
+          <option value=":cmdlineargs-plugin:runPluginWithRustRover" />
         </list>
       </option>
       <option name="vmOptions" value="" />
