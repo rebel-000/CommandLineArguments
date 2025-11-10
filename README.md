@@ -1,4 +1,4 @@
-<img src="clargs-plugin/resources/icons/tool-icon.svg" width="80" height="80" alt="icon" align="left" style="padding-right: 25px"/>
+<img src="cmdlineargs-plugin/resources/icons/tool-icon.svg" width="80" height="80" alt="icon" align="left" style="padding-right: 25px"/>
 
 Command-Line Arguments
 ===
