@@ -1,0 +1,5 @@
+<idea-plugin>
+    <!-- depends>com.intellij.nativeDebug</depends>-->
+    <!--<depends>com.intellij.clion.cmake</depends>-->
+    <depends optional="true" config-file="ext-clion-makefile.xml">com.intellij.clion-makefile</depends>
+</idea-plugin>
