@@ -1,8 +1,16 @@
 <!-- Keep a Changelog guide -> https://keepachangelog.com -->
 
-# CommandlineArgumentsWCheckboxes Changelog
+# Command-Line Arguments Changelog
 
 ## Unreleased
+
+### Added
+
+- 2025.3-EAP support
+- Run configuration arguments preview
+- CLion, Java/Kotlin, Python, Rust support
+
+## 2.1.3 - 2025-08-15
 
 ### Changed
 
