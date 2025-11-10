@@ -1,0 +1,33 @@
+<idea-plugin xmlns:xi="http://www.w3.org/2001/XInclude">
+    <depends>com.intellij.modules.lang</depends>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.execution</depends>
+
+    <resource-bundle>messages.CommandlineArgsBundle</resource-bundle>
+
+    <xi:include href="args-actions.xml" />
+
+    <extensionPoints>
+        <extensionPoint qualifiedName="com.github.rebel000.cmdlineargs.extensions.adapterProvider"
+                        interface="com.github.rebel000.cmdlineargs.extensions.ArgumentsAdapterProviderExtension"
+                        dynamic="true" />
+        <extensionPoint qualifiedName="com.github.rebel000.cmdlineargs.extensions.platformExtension"
+                        interface="com.github.rebel000.cmdlineargs.extensions.PlatformExtension"
+                        dynamic="true" />
+    </extensionPoints>
+
+    <projectListeners>
+        <listener class="com.github.rebel000.cmdlineargs.listeners.MyExecutionListener"
+                  topic="com.intellij.execution.ExecutionListener" />
+        <listener class="com.github.rebel000.cmdlineargs.listeners.MyRunManagerListener"
+                  topic="com.intellij.execution.RunManagerListener" />
+    </projectListeners>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="cmdlineargs"
+                    anchor="right"
+                    secondary="true"
+                    icon="com.github.rebel000.cmdlineargs.resources.Icons.ToolWindow"
+                    factoryClass="com.github.rebel000.cmdlineargs.ui.ToolWindowFactory" />
+    </extensions>
+</idea-plugin>

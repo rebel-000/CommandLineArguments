@@ -1,0 +1,183 @@
+package com.github.rebel000.cmdlineargs.tree
+
+import com.github.rebel000.cmdlineargs.resources.Messages
+import javax.swing.event.TreeModelEvent
+import javax.swing.event.TreeModelListener
+import javax.swing.tree.TreeModel
+import javax.swing.tree.TreeNode
+import javax.swing.tree.TreePath
+
+internal class ArgumentTreeModel() : TreeModel {
+    private val listenerList = mutableListOf<TreeModelListener>()
+    private val treeRoot = ArgumentTreeNodeBase()
+    private var _previewRoot: InfoNode? = null
+    private var _sharedRoot: ArgumentContainer? = null
+    val projectRoot = ArgumentContainer(Messages.message("toolwindow.projectNode"))
+    var previewRoot: InfoNode?
+        get() = _previewRoot
+        set(value) {
+            _previewRoot?.let { remove(it) }
+            _previewRoot = value
+            _previewRoot?.let {  rawInsert(it, null, 0) }
+        }
+
+    var sharedRoot: ArgumentContainer?
+        get() = _sharedRoot
+        set(value) {
+            _sharedRoot?.let { remove(it) }
+            _sharedRoot = value
+            _sharedRoot?.let {
+                val parent = projectRoot.parent as ArgumentTreeNodeBase
+                val index = parent.getIndex(projectRoot)
+                rawInsert(_sharedRoot!!, parent, index)
+            }
+        }
+
+    init {
+        treeRoot.add(projectRoot)
+    }
+
+    fun adjustInsertion(anchor: ArgumentTreeNodeBase?, above: Boolean = false): Pair<ArgumentContainer, Int> {
+        if (anchor is ArgumentContainer) {
+            if (!anchor.isLeaf) {
+                return Pair(anchor, anchor.childCount)
+            }
+            val parent = anchor.parent
+            if (parent is ArgumentContainer) {
+                return Pair(parent, parent.getIndex(anchor) + if (above) 0 else 1)
+            }
+        }
+        return Pair(projectRoot, projectRoot.childCount)
+    }
+
+    fun add(node: ArgumentNode, hint: ArgumentTreeNodeBase?) {
+        val (parent, index) = adjustInsertion(hint)
+        insert(node, parent, index)
+    }
+
+    fun tryInsertAfter(node: ArgumentNode, after: ArgumentContainer) {
+        val parent = after.parent as? ArgumentContainer
+        if (parent != null) {
+            insert(node, parent, parent.getIndex(after) + 1)
+        } else {
+            add(node, after)
+        }
+    }
+
+    @Suppress("unused")
+    fun tryInsertBefore(node: ArgumentNode, before: ArgumentContainer) {
+        val parent = before.parent as? ArgumentContainer
+        if (parent != null) {
+            insert(node, parent, parent.getIndex(before))
+        } else {
+            add(node, before)
+        }
+    }
+
+    fun insert(node: ArgumentNode, parent: ArgumentContainer, index: Int) {
+        parent.insert(node, index)
+        fireTreeNodesInserted(parent.path, intArrayOf(index), arrayOf(node))
+    }
+
+    fun rawInsert(node: ArgumentTreeNodeBase, parent: ArgumentTreeNodeBase?, index: Int) {
+        val parent = parent ?: treeRoot
+        parent.insert(node, index)
+        fireTreeNodesInserted(parent.path, intArrayOf(index), arrayOf(node))
+    }
+
+    fun remove(node: ArgumentTreeNodeBase) {
+        val parent = node.parent as? ArgumentTreeNodeBase ?: return
+        val index = parent.getIndex(node)
+        parent.remove(index)
+        fireTreeNodesRemoved(parent.path, intArrayOf(index), arrayOf(node))
+    }
+
+    fun invalidate() {
+        invalidate(root, true)
+    }
+
+    fun invalidate(node: ArgumentTreeNodeBase, recursive: Boolean) {
+        if (recursive) {
+            fireTreeStructureChanged(node.path)
+        } else {
+            val parent = node.parent as? ArgumentTreeNodeBase
+            if (parent != null) {
+                fireTreeNodesChanged(parent.path, intArrayOf(parent.getIndex(node)), arrayOf(node))
+            } else if (node === root) {
+                fireTreeNodesChanged(node.path, intArrayOf(), emptyArray())
+            }
+        }
+    }
+
+    private fun fireTreeNodesChanged(path: Array<TreeNode>, childIndices: IntArray, children: Array<TreeNode>) {
+        if (listenerList.isNotEmpty()) {
+            val event = TreeModelEvent(this, path, childIndices, children)
+            for (listener in listenerList.asReversed()) {
+                listener.treeNodesChanged(event)
+            }
+        }
+    }
+
+    private fun fireTreeNodesInserted(path: Array<TreeNode>, childIndices: IntArray, children: Array<TreeNode>) {
+        if (listenerList.isNotEmpty()) {
+            val event = TreeModelEvent(this, path, childIndices, children)
+            for (listener in listenerList.asReversed()) {
+                listener.treeNodesInserted(event)
+            }
+        }
+    }
+
+    private fun fireTreeNodesRemoved(path: Array<TreeNode>, childIndices: IntArray, children: Array<TreeNode>) {
+        if (listenerList.isNotEmpty()) {
+            val event = TreeModelEvent(this, path, childIndices, children)
+            for (listener in listenerList.asReversed()) {
+                listener.treeNodesRemoved(event)
+            }
+        }
+    }
+
+    private fun fireTreeStructureChanged(path: Array<TreeNode>) {
+        if (listenerList.isNotEmpty()) {
+            val event = TreeModelEvent(this, path)
+            for (listener in listenerList.asReversed()) {
+                listener.treeStructureChanged(event)
+            }
+        }
+    }
+
+    override fun getRoot(): ArgumentTreeNodeBase {
+        return treeRoot
+    }
+
+    override fun getChild(parent: Any?, index: Int): ArgumentTreeNodeBase? {
+        return (parent as? ArgumentTreeNodeBase)?.getChildAt(index) as? ArgumentTreeNodeBase
+    }
+
+    override fun getChildCount(parent: Any?): Int {
+        return (parent as? ArgumentTreeNodeBase)?.childCount ?: 0
+    }
+
+    override fun isLeaf(node: Any?): Boolean {
+        return (node as? ArgumentTreeNodeBase)?.isLeaf ?: return true
+    }
+
+    override fun valueForPathChanged(path: TreePath?, newValue: Any?) {
+        val node = path?.lastPathComponent as ArgumentTreeNodeBase
+        node.setUserObject(newValue)
+        invalidate(node, false)
+    }
+
+    override fun getIndexOfChild(parent: Any?, child: Any?): Int {
+        val parent = parent as? ArgumentTreeNodeBase ?: return -1
+        val child = child as? ArgumentTreeNodeBase ?: return -1
+        return parent.getIndex(child)
+    }
+
+    override fun addTreeModelListener(l: TreeModelListener) {
+        listenerList.add(l)
+    }
+
+    override fun removeTreeModelListener(l: TreeModelListener) {
+        listenerList.remove(l)
+    }
+}
