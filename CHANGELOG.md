@@ -6,6 +6,12 @@
 
 ### Changed
 
+- Rider 2025.3 support
+
+## 2.1.4 - 2025-08-15
+
+### Changed
+
 - Rider 2025.2 support
 
 ## 2.1.3 - 2025-04-17
