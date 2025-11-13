@@ -2,8 +2,6 @@ package com.github.rebel000.cmdlineargs.provider.rider.adapters
 
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
-import com.intellij.execution.compound.CompoundRunConfiguration
-import com.intellij.execution.multilaunch.MultiLaunchConfiguration
 import com.jetbrains.rider.cpp.run.configurations.CppProjectConfiguration
 import org.jdom.Element
 
@@ -15,7 +13,7 @@ internal class CppProjectConfigurationAdapter(s: RunnerAndConfigurationSettings)
     private var cachedArgs = ""
 
     override fun getArguments(): String {
-        return cachedArgs
+        return if (isEnabled) cachedArgs else ""
     }
 
     override fun setArguments(value: String) {
