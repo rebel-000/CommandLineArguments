@@ -1,3 +1,18 @@
+import org.jetbrains.intellij.platform.gradle.toIntelliJPlatformType
+
 plugins {
-    id("cmdlineargs-module-conventions")
+    id("cmdlineargs-common-conventions")
+}
+
+dependencies {
+    intellijPlatform{
+        create(ppString("platform.type").toIntelliJPlatformType(), ppString("platform.version")) {
+            useInstaller = false
+            useCustomCache = true
+        }
+
+        jetbrainsRuntime()
+    }
+
+//    implementation(project(":cmdlineargs-plugin:args-core"))
 }

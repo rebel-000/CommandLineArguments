@@ -80,23 +80,29 @@ intellijPlatform {
 
     publishing {
         token = providers.environmentVariable("PUBLISH_TOKEN")
-        channels = listOf(
-            ppString("version")
+        ppString("version")
             .substringAfter('-', "")
             .substringBefore('.')
-            .ifEmpty { "default" }
-        )
+            .let {
+                if (it.isNotEmpty()) {
+                    channels = listOf(it)
+                }
+            }
     }
 
-    ppWithList("verify.ides") {
-        pluginVerification {
-            ides {
-                select {
-                    channels = listOf(Channel.RELEASE, Channel.EAP, Channel.RC)
-                    types.convention(it.map(IntelliJPlatformType::fromCode))
-                    sinceBuild = ppString("sinceBuild")
-                    untilBuild = ppString("untilBuild")
-                }
+    pluginVerification {
+        ides {
+            select {
+                channels = listOf(Channel.RELEASE, Channel.EAP, Channel.RC)
+                types.convention(listOf(
+                    IntelliJPlatformType.IntellijIdeaUltimate,
+                    IntelliJPlatformType.CLion,
+                    IntelliJPlatformType.PyCharmProfessional,
+                    IntelliJPlatformType.Rider,
+                    IntelliJPlatformType.RustRover
+                ))
+                sinceBuild = ppString("sinceBuild")
+                untilBuild = ppString("untilBuild")
             }
         }
     }
@@ -148,18 +154,16 @@ intellijPlatformTesting {
             }
         })
 
-        runPluginWithIdeTask(IntelliJPlatformType.IntellijIdeaCommunity)
         runPluginWithIdeTask(IntelliJPlatformType.IntellijIdeaUltimate) {
             plugins {
                 compatiblePlugins("com.jetbrains.rust")
             }
         }
         runPluginWithIdeTask(IntelliJPlatformType.CLion)
-        runPluginWithIdeTask(IntelliJPlatformType.PyCharmCommunity)
+        runPluginWithIdeTask(IntelliJPlatformType.PyCharmProfessional)
         runPluginWithIdeTask(IntelliJPlatformType.Rider) {
             ppWithString("provider.rider.platform.version") {
                 this.version = it
-                print("IntelliJPlatformType.Rider: ${this.version}")
             }
         }
         runPluginWithIdeTask(IntelliJPlatformType.RustRover)
