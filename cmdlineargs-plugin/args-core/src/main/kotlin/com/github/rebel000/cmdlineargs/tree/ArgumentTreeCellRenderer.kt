@@ -9,7 +9,7 @@ import java.awt.Color
 import javax.swing.JTree
 
 internal class ArgumentTreeCellRenderer : CheckboxTree.CheckboxTreeCellRenderer(true, false) {
-    val myRadioButton = JBRadioButton().apply { isOpaque = false }
+    val radioButton = JBRadioButton().apply { isOpaque = false }
 
     override fun customizeRenderer(
         tree: JTree,
@@ -23,28 +23,28 @@ internal class ArgumentTreeCellRenderer : CheckboxTree.CheckboxTreeCellRenderer(
         val fgColor: Color = textRenderer.foreground
         when (value) {
             is InfoNode -> {
-                myCheckbox.isVisible = value.isEnabled
-                myRadioButton.isVisible = false
+                threeStateCheckBox.isVisible = value.isEnabled
+                radioButton.isVisible = false
                 textRenderer.icon = value.icon
                 textRenderer.append(value.toString(), value.style ?: SimpleTextAttributes.REGULAR_ATTRIBUTES)
             }
 
             is ArgumentNode -> {
-                myCheckbox.isVisible = true
-                myRadioButton.isVisible = true
-                val isRadio = myRadioButton.parent != null
+                threeStateCheckBox.isVisible = true
+                radioButton.isVisible = true
+                val isRadio = radioButton.parent != null
                 val useRadio = (value.parent as? ArgumentNode)?.isSingle == true
                 if (isRadio != useRadio) {
                     if (useRadio) {
-                        add(myRadioButton, BorderLayout.WEST)
-                        remove(myCheckbox)
+                        add(radioButton, BorderLayout.WEST)
+                        remove(threeStateCheckBox)
                     } else {
-                        add(myCheckbox, BorderLayout.WEST)
-                        remove(myRadioButton)
+                        add(threeStateCheckBox, BorderLayout.WEST)
+                        remove(radioButton)
                     }
                 }
-                myCheckbox.state = value.state
-                myRadioButton.isSelected = value.state != ThreeStateCheckBox.State.NOT_SELECTED
+                threeStateCheckBox.state = value.state
+                radioButton.isSelected = value.state != ThreeStateCheckBox.State.NOT_SELECTED
                 textRenderer.icon = value.icon
                 textRenderer.append("$value   ")
                 if (value.filters.isNotEmpty()) {
@@ -54,8 +54,8 @@ internal class ArgumentTreeCellRenderer : CheckboxTree.CheckboxTreeCellRenderer(
             }
 
             else -> {
-                myCheckbox.isVisible = false
-                myRadioButton.isVisible = false
+                threeStateCheckBox.isVisible = false
+                radioButton.isVisible = false
                 textRenderer.icon = null
                 textRenderer.append(value.toString())
             }

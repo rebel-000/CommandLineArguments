@@ -9,8 +9,11 @@ import com.github.rebel000.cmdlineargs.tree.visitors.CollectArgsVisitor
 import com.github.rebel000.cmdlineargs.tree.visitors.TraverseVisitor
 import com.github.rebel000.cmdlineargs.extensions.asBooleanOrNull
 import com.github.rebel000.cmdlineargs.extensions.asIntOrNull
+import com.github.rebel000.cmdlineargs.extensions.asJsonArrayOrNull
 import com.github.rebel000.cmdlineargs.extensions.asJsonObjectOrNull
+import com.github.rebel000.cmdlineargs.extensions.asStringOrNull
 import com.github.rebel000.cmdlineargs.extensions.tryParseJson
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.intellij.execution.CommonProgramRunConfigurationParameters
 import com.intellij.execution.RunManager
@@ -55,10 +58,10 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
 
     private val adapters = mutableMapOf<Pair<String, String>, ArgumentsAdapter>()
     private val saveFlow = MutableSharedFlow<Unit>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val disabledConfigurations = mutableSetOf<Pair<String, String>>()
     private var stateFile: String? = null
     private var _isEnabled = true
     internal val model = ArgumentTreeModel()
-    internal val isPreviewVisible get() = model.previewRoot != null
     internal val isSharedVisible get() = model.sharedRoot != null
     var isEnabled: Boolean
         get() = _isEnabled
@@ -114,7 +117,6 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             saveFlow.debounce(DEFERRED_SAVE_DELAY).collectLatest { save() }
         }
         ApplicationManager.getApplication().invokeLater {
-            togglePreview(getSharedState().showPreviewNode)
             update()
         }
     }
@@ -147,25 +149,12 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         ))
     }
 
-    internal fun togglePreview(enabled: Boolean) {
-        if (isPreviewVisible != enabled) {
-            val sharedState = getSharedState()
-            sharedState.showPreviewNode = enabled
-            if (enabled) {
-                model.previewRoot = InfoNode(Messages.message("toolwindow.previewNode"))
-                updatePreview()
-            } else {
-                model.previewRoot = null
-            }
-        }
-    }
-
     internal fun toggleShared(enabled: Boolean) {
         if (isSharedVisible != enabled) {
             val sharedState = getSharedState()
             sharedState.showSharedNode = enabled
             if (enabled) {
-                reloadShared(true)
+                reloadShared()
             } else {
                 saveShared()
                 model.sharedRoot = null
@@ -181,6 +170,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             } else if (node is InfoNode) {
                 val key = node.userdata
                 if (key is Pair<*, *> && key.first is String && key.second is String) {
+                    val key = Pair(key.first as String, key.second as String)
                     val adapter = adapters[key]
                     if (adapter != null) {
                         adapter.isEnabled = node.isChecked
@@ -189,8 +179,12 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                             model.sharedRoot?.traverse(visitor)
                             model.projectRoot.traverse(visitor)
                             adapter.setArguments(visitor.toString())
+                            disabledConfigurations.remove(key)
+                        } else {
+                            disabledConfigurations.add(key)
                         }
                         updatePreview()
+                        save()
                     }
                 }
             }
@@ -227,6 +221,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         }
         val adapter = createAdapter(s)
         if (adapter != null) {
+            adapter.isEnabled = !disabledConfigurations.contains(key)
             adapters[key] = adapter
         }
         update()
@@ -240,10 +235,14 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             var adapter = getAdapter(s)
             if (adapter != null) {
                 adapters.remove(oldKey)
+                disabledConfigurations.remove(oldKey)
             } else {
                 adapter = createAdapter(s)
             }
             if (adapter != null) {
+                if (!adapter.isEnabled) {
+                    disabledConfigurations.add(newKey)
+                }
                 adapters[newKey] = adapter
             }
             updateCopyActions()
@@ -254,6 +253,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     internal fun onRunConfigurationRemoved(s: RunnerAndConfigurationSettings) {
         val key = Pair(s.type.id, s.name)
         adapters.remove(key)
+        disabledConfigurations.remove(key)
         update()
         updateCopyActions()
     }
@@ -295,17 +295,40 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     internal fun reload() {
         val stateFile = File(stateFile ?: locateStateFile())
         this.stateFile = stateFile.path
-        var showShared = false
         if (stateFile.exists()) {
             val jsonString = stateFile.readText()
             val jObject: JsonObject? = tryParseJson(jsonString, project.thisLogger())?.asJsonObjectOrNull
             if (jObject != null) {
                 val revision = (jObject.get("revision") ?: jObject.get("version"))?.asIntOrNull ?: 0
-                if (revision >= 1) {
-                    showShared = jObject.get("showShared")?.asBooleanOrNull == true
-                    isEnabled = jObject.get("isEnabled")?.asBooleanOrNull ?: true
+                if (revision >= 2) {
+                    isEnabled = jObject.get("enabled")?.asBooleanOrNull ?: true
+                    model.previewRoot.isExpanded = jObject.get("preview")?.asBooleanOrNull ?: true
+                    val jDisabled = jObject.get("disabled")?.asJsonArrayOrNull
+                    if (jDisabled != null) {
+                        for (it in jDisabled) {
+                            if (it is JsonArray && it.size() == 2) {
+                                val type = it[0].asStringOrNull
+                                val name = it[1].asStringOrNull
+                                if (type != null && name != null) {
+                                    disabledConfigurations.add(Pair(type, name))
+                                }
+                            }
+                        }
+                    }
                     val filters = getFilters().map { it.key }
-                    model.projectRoot.deserialize(jObject, revision) { node ->
+                    val jRoot = jObject.get("root")?.asJsonObjectOrNull
+                    if (jRoot != null) {
+                        model.projectRoot.deserialize(jRoot, revision) { node ->
+                            if (node is ArgumentNode) {
+                                node.filters = node.filters.filter { it.key in filters }
+                            }
+                        }
+                    }
+                } else {
+                    val filters = getFilters().map { it.key }
+                    isEnabled = jObject.get("isEnabled")?.asBooleanOrNull ?: true
+                    model.previewRoot.isExpanded = true
+                    model.projectRoot.deserialize(jObject, 1) { node ->
                         if (node is ArgumentNode) {
                             node.filters = node.filters.filter { it.key in filters }
                         }
@@ -313,19 +336,20 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 }
             }
         }
-        reloadShared(showShared)
+        if (isSharedVisible) {
+            reloadShared()
+        }
         model.invalidate()
     }
 
-    private fun reloadShared(enabled: Boolean) {
+    private fun reloadShared() {
         val sharedState = getSharedState()
-        val enabled = enabled && sharedState.showSharedNode
         val revision = sharedState.revision
         var jsonString = sharedState.sharedArgs ?: return
         if (revision == SERIALIZE_REVISION) {
             jsonString = Base64.getDecoder().decode(jsonString).toString(Charsets.UTF_8)
         }
-        if (enabled && jsonString.isNotEmpty()) {
+        if (jsonString.isNotEmpty()) {
             val jObject: JsonObject? = tryParseJson(jsonString, project.thisLogger())?.asJsonObjectOrNull
             if (jObject != null) {
                 val node = ArgumentContainer(Messages.message("toolwindow.sharedNode"))
@@ -345,10 +369,24 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     private fun save() {
         val stateFile = File(stateFile ?: locateStateFile())
         this.stateFile = stateFile.path
-        val jObject = model.projectRoot.serialize()
+        val jObject = JsonObject()
         jObject.addProperty("revision", SERIALIZE_REVISION)
-        jObject.addProperty("isEnabled", isEnabled)
-        jObject.addProperty("showShared", isSharedVisible)
+        jObject.addProperty("enabled", isEnabled)
+        jObject.addProperty("preview", model.previewRoot.isExpanded)
+        jObject.add("disabled", JsonArray().apply {
+            for (node in model.previewRoot.children()) {
+                if (node is InfoNode && !node.isChecked) {
+                    val key = node.userdata
+                    if (key is Pair<*, *> && key.first is String && key.second is String) {
+                        add(JsonArray().apply {
+                            add(key.first as String)
+                            add(key.second as String)
+                        })
+                    }
+                }
+            }
+        })
+        jObject.add("root", model.projectRoot.serialize())
         stateFile.writeText(jObject.toString())
         saveShared()
     }
@@ -442,7 +480,6 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     private fun updatePreview() {
-        val previewRoot = model.previewRoot ?: return
         val runManager = RunManager.getInstanceIfCreated(project) ?: return
         val allConfigurations = runManager.allSettings.filter { it.configuration !is CompoundRunConfiguration && it.configuration !is MultiLaunchConfiguration }
         val activeConfigurations = when (val cfg = runManager.selectedConfiguration?.configuration) {
@@ -450,18 +487,18 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             is MultiLaunchConfiguration -> { cfg.descriptors.mapNotNull { (it.executable as? RunConfigurationExecutableManager.RunConfigurationExecutable)?.settings?.configuration }}
             else -> listOf(cfg)
         }
-        if (previewRoot.childCount != allConfigurations.size) {
-            while (previewRoot.childCount < allConfigurations.size) {
-                model.rawInsert(InfoNode(""), previewRoot, previewRoot.childCount)
+        if (model.previewRoot.childCount != allConfigurations.size) {
+            while (model.previewRoot.childCount < allConfigurations.size) {
+                model.rawInsert(InfoNode(""), model.previewRoot, model.previewRoot.childCount)
             }
-            while (previewRoot.childCount > allConfigurations.size) {
-                model.remove(previewRoot.lastChild as ArgumentTreeNodeBase)
+            while (model.previewRoot.childCount > allConfigurations.size) {
+                model.remove(model.previewRoot.lastChild as ArgumentTreeNodeBase)
             }
         }
         for (i in 0 until allConfigurations.size) {
             val config = allConfigurations[i]
             val adapter = getAdapter(config)
-            val node = previewRoot.getChildAt(i) as InfoNode
+            val node = model.previewRoot.getChildAt(i) as InfoNode
             val isActive = config.configuration in activeConfigurations
             val isSupported = adapter != null
             node.isEnabled = isSupported
@@ -488,7 +525,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 node.userdata = null
             }
         }
-        model.invalidate(previewRoot, true)
+        model.invalidate(model.previewRoot, true)
     }
 }
 

@@ -14,6 +14,5 @@ class ArgumentsSharedStorage : SimplePersistentStateComponent<ArgumentsSharedSto
         var sharedArgs by string()
         var revision by property(0)
         var showSharedNode by property(false)
-        var showPreviewNode by property(false)
     }
 }

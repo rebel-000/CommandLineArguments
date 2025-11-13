@@ -54,9 +54,9 @@ internal class ArgumentTreeCellEditor() : DefaultCellEditor(JTextField()) {
                 var offsetX = renderer.insets.left + renderer.textRenderer.ipad.left + renderer.textRenderer.myBorder.getBorderInsets(renderer.textRenderer).left
                 offsetX -= textField.insets.left + textField.margin.left
                 offsetX += if ((value.parent as? ArgumentNode)?.isSingle == true) {
-                    renderer.myRadioButton.width
+                    renderer.radioButton.width
                 } else {
-                    renderer.myCheckbox.width
+                    renderer.threeStateCheckBox.width
                 }
                 if (!value.isLeaf) {
                     offsetX += textField.getFontMetrics(textField.font).charWidth('[')

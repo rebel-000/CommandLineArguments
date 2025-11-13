@@ -110,14 +110,16 @@ internal class ArgumentTree(private val project: Project) : CheckboxTree(Argumen
             }
         })
         addTreeExpansionListener(object : TreeExpansionListener {
-            override fun treeExpanded(event: TreeExpansionEvent?) = Unit
+            override fun treeExpanded(event: TreeExpansionEvent?) {
+                val node = event?.path?.lastPathComponent ?: return
+                if (node is ArgumentTreeNodeBase) {
+                    node.isExpanded = true
+                }
+            }
             override fun treeCollapsed(event: TreeExpansionEvent?) {
-                val path = event?.path ?: return
-                if (path.lastPathComponent !is ArgumentNode) {
-                    ApplicationManager.getApplication().invokeLater {
-                        expandPath(TreePath(path))
-                        model.invalidate(path.lastPathComponent as ArgumentTreeNodeBase, false)
-                    }
+                val node = event?.path?.lastPathComponent ?: return
+                if (node is ArgumentTreeNodeBase) {
+                    node.isExpanded = false
                 }
             }
         })
@@ -165,7 +167,7 @@ internal class ArgumentTree(private val project: Project) : CheckboxTree(Argumen
     }
 
     private fun restoreExpandState(node: ArgumentTreeNodeBase) {
-        if (node !is ArgumentNode || node.isExpanded) {
+        if (node.isExpanded) {
             expandPath(TreePath(node.path))
         }
         for (child in node.children()) {

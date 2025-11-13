@@ -17,7 +17,6 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
     private var _filtersValue: Map<String, List<String>> = emptyMap()
     private var _filtersString: String? = null
     var description: String = ""
-    var isExpanded: Boolean = true
     var isFolder: Boolean = false
     var isParameter: Boolean = false
     var isSingle: Boolean = false

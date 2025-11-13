@@ -2,4 +2,6 @@ package com.github.rebel000.cmdlineargs.tree
 
 import com.intellij.ui.CheckedTreeNode
 
-open class ArgumentTreeNodeBase : CheckedTreeNode()
+open class ArgumentTreeNodeBase : CheckedTreeNode() {
+    var isExpanded: Boolean = true
+}

@@ -73,10 +73,6 @@
                 <keyboard-shortcut first-keystroke="ctrl R" keymap="$default" />
             </action>
             <separator />
-            <action id="cmdlineargs.showPreview"
-                    class="com.github.rebel000.cmdlineargs.actions.ShowPreviewAction"
-                    icon="AllIcons.General.Show">
-            </action>
             <action id="cmdlineargs.showShared"
                     class="com.github.rebel000.cmdlineargs.actions.ShowSharedAction"
                     icon="AllIcons.CodeWithMe.CwmShared">
