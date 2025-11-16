@@ -8,5 +8,4 @@
     <xi:include href="/META-INF/plugin-python.xml"/>
     <xi:include href="/META-INF/plugin-rider.xml"/>
     <xi:include href="/META-INF/plugin-rust.xml"/>
-    <xi:include href="/META-INF/plugin-sh.xml"/>
 </idea-plugin>

@@ -8,14 +8,15 @@ import com.jetbrains.rider.projectView.solution
 
 internal abstract class RiderArgumentsAdapter(s: RunnerAndConfigurationSettings) : ArgumentsAdapter(s) {
     override fun predicate(): ((ArgumentNode) -> Boolean) {
-        val activeConfigurationPlatform = settings.configuration.project.solution.solutionProperties.activeConfigurationPlatform()
+        val configuration = settings?.configuration ?: return { false }
+        val activeConfigurationPlatform = configuration.project.solution.solutionProperties.activeConfigurationPlatform()
         val activeConfiguration = activeConfigurationPlatform?.configuration ?: ""
         val activePlatform = activeConfigurationPlatform?.platform ?: ""
         return {
             val runConfigurationFilters = it.filters["runConfiguration"].orEmpty()
             val platformFilters = it.filters["platform"].orEmpty()
             val configurationFilters = it.filters["configuration"].orEmpty()
-            val passRunConfigurationFilter = runConfigurationFilters.isEmpty() || runConfigurationFilters.any{ f -> settings.name.matchesWildcard(f) }
+            val passRunConfigurationFilter = runConfigurationFilters.isEmpty() || runConfigurationFilters.any{ f -> name.matchesWildcard(f) }
             val passPlatformFilter = platformFilters.isEmpty() || platformFilters.any{ f -> activePlatform.matchesWildcard(f) }
             val passConfigurationFilter = configurationFilters.isEmpty() || configurationFilters.any{ f -> activeConfiguration.matchesWildcard(f) }
             passRunConfigurationFilter && passPlatformFilter && passConfigurationFilter

@@ -11,6 +11,9 @@ dependencies {
             useCustomCache = true
         }
 
+        bundledPlugins("com.intellij.java")
+        bundledPlugins("com.jetbrains.sh")
+        bundledPlugins("org.jetbrains.kotlin")
         jetbrainsRuntime()
     }
 

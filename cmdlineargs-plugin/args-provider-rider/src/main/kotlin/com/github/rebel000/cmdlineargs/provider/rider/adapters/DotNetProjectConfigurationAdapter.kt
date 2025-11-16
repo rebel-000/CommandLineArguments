@@ -5,12 +5,12 @@ import com.jetbrains.rider.run.configurations.project.DotNetProjectConfiguration
 
 internal class DotNetProjectConfigurationAdapter(s: RunnerAndConfigurationSettings) : RiderArgumentsAdapter(s) {
     override fun getArguments(): String {
-        val config = settings.configuration as? DotNetProjectConfiguration ?: return ""
+        val config = settings?.configuration as? DotNetProjectConfiguration ?: return ""
         return config.parameters.programParameters
     }
 
     override fun setArguments(value: String) {
-        val config = settings.configuration as? DotNetProjectConfiguration ?: return
+        val config = settings?.configuration as? DotNetProjectConfiguration ?: return
         config.parameters.programParameters = value
     }
 }

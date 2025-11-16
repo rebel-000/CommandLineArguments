@@ -1,0 +1,5 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.github.rebel000.cmdlineargs.extensions">
+        <adapterProvider implementation="com.github.rebel000.cmdlineargs.provider.ShRunConfigurationAdapterProvider"/>
+    </extensions>
+</idea-plugin>

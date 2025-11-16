@@ -1,7 +1,6 @@
 package com.github.rebel000.cmdlineargs.ui
 
 import com.github.rebel000.cmdlineargs.FilterDefinition
-import com.github.rebel000.cmdlineargs.extensions.PlatformExtension
 import com.github.rebel000.cmdlineargs.tree.ArgumentNode
 import com.intellij.openapi.ui.setEmptyState
 import com.intellij.ui.components.JBCheckBox

@@ -27,7 +27,6 @@
             <option value="$PROJECT_DIR$/cmdlineargs-plugin/args-provider-python" />
             <option value="$PROJECT_DIR$/cmdlineargs-plugin/args-provider-rider" />
             <option value="$PROJECT_DIR$/cmdlineargs-plugin/args-provider-rust" />
-            <option value="$PROJECT_DIR$/cmdlineargs-plugin/args-provider-sh" />
           </set>
         </option>
       </GradleProjectSettings>

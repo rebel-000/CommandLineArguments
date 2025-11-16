@@ -5,12 +5,12 @@ import com.jetbrains.rider.run.configurations.multiPlatform.RiderMultiPlatformCo
 
 internal class RiderMultiPlatformConfigurationAdapter(s: RunnerAndConfigurationSettings) : RiderArgumentsAdapter(s) {
     override fun getArguments(): String {
-        val config = settings.configuration as? RiderMultiPlatformConfiguration ?: return ""
+        val config = settings?.configuration as? RiderMultiPlatformConfiguration ?: return ""
         return config.parameters.programParameters
     }
 
     override fun setArguments(value: String) {
-        val config = settings.configuration as? RiderMultiPlatformConfiguration ?: return
+        val config = settings?.configuration as? RiderMultiPlatformConfiguration ?: return
         config.parameters.programParameters = value
     }
 }

@@ -5,12 +5,12 @@ import com.jetbrains.rider.run.configurations.launchSettings.LaunchSettingsConfi
 
 internal class LaunchSettingsConfigurationAdapter(s: RunnerAndConfigurationSettings) : RiderArgumentsAdapter(s) {
     override fun getArguments(): String {
-        val config = settings.configuration as? LaunchSettingsConfiguration ?: return ""
+        val config = settings?.configuration as? LaunchSettingsConfiguration ?: return ""
         return config.parameters.runtimeArguments
     }
 
     override fun setArguments(value: String) {
-        val config = settings.configuration as? LaunchSettingsConfiguration ?: return
+        val config = settings?.configuration as? LaunchSettingsConfiguration ?: return
         config.parameters.runtimeArguments = ""
     }
 }

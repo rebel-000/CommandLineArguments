@@ -7,7 +7,6 @@ include(
     "cmdlineargs-plugin:args-provider-python",
     "cmdlineargs-plugin:args-provider-rider",
     "cmdlineargs-plugin:args-provider-rust",
-    "cmdlineargs-plugin:args-provider-sh",
 )
 
 buildCache {

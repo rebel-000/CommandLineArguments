@@ -11,17 +11,20 @@ class MakefileRunConfigurationAdapterProvider : ArgumentsAdapterProviderExtensio
     }
 
     override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
-        return (s.configuration as? MakefileRunConfiguration)?.let { MakefileRunConfigurationAdapter(s) }
+        return when (s.configuration) {
+            is MakefileRunConfiguration -> MakefileRunConfigurationAdapter(s)
+            else -> null
+        }
     }
 
     class MakefileRunConfigurationAdapter(s: RunnerAndConfigurationSettings) : ArgumentsAdapter(s) {
         override fun getArguments(): String {
-            val config = settings.configuration as? MakefileRunConfiguration ?: return ""
+            val config = settings?.configuration as? MakefileRunConfiguration ?: return ""
             return config.arguments
         }
 
         override fun setArguments(value: String) {
-            val config = settings.configuration as? MakefileRunConfiguration ?: return
+            val config = settings?.configuration as? MakefileRunConfiguration ?: return
             config.arguments = value
         }
     }

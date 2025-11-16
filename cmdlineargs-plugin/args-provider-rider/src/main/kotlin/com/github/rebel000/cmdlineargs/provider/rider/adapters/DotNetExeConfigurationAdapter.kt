@@ -5,12 +5,12 @@ import com.jetbrains.rider.run.configurations.dotNetExe.DotNetExeConfiguration
 
 internal class DotNetExeConfigurationAdapter(s: RunnerAndConfigurationSettings) : RiderArgumentsAdapter(s) {
     override fun getArguments(): String {
-        val configuration = settings.configuration as? DotNetExeConfiguration ?: return ""
+        val configuration = settings?.configuration as? DotNetExeConfiguration ?: return ""
         return configuration.parameters.programParameters
     }
 
     override fun setArguments(value: String) {
-        val configuration = settings.configuration as? DotNetExeConfiguration ?: return
+        val configuration = settings?.configuration as? DotNetExeConfiguration ?: return
         configuration.parameters.programParameters = value
     }
 }

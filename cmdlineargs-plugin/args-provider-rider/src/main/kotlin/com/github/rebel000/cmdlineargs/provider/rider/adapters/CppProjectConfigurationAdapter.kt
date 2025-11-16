@@ -13,7 +13,7 @@ internal class CppProjectConfigurationAdapter(s: RunnerAndConfigurationSettings)
     private var cachedArgs = ""
 
     override fun getArguments(): String {
-        return if (isEnabled) cachedArgs else ""
+        return if (enabled) cachedArgs else ""
     }
 
     override fun setArguments(value: String) {
@@ -21,7 +21,7 @@ internal class CppProjectConfigurationAdapter(s: RunnerAndConfigurationSettings)
     }
 
     override fun onStart() {
-        val config = settings.configuration as? CppProjectConfiguration ?: return
+        val config = settings?.configuration as? CppProjectConfiguration ?: return
         val selectedConfiguration = RunManager
             .getInstanceIfCreated(config.project)
             ?.selectedConfiguration
@@ -50,8 +50,8 @@ internal class CppProjectConfigurationAdapter(s: RunnerAndConfigurationSettings)
 
     override fun onCleanup() {
         var isModified = false
+        val config = settings?.configuration as? CppProjectConfiguration ?: return
         val element = Element("configuration")
-        val config = settings.configuration as CppProjectConfiguration
         config.parameters.parametersMap.writeExternal(element)
         for (child in element.children) {
             val envs = child.getChild("envs")

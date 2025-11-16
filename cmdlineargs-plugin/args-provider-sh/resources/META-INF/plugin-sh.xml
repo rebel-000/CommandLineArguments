@@ -1,3 +1,0 @@
-<idea-plugin>
-    <depends optional="true" config-file="ext-sh.xml">com.jetbrains.sh</depends>
-</idea-plugin>

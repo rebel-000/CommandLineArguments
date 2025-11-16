@@ -24,7 +24,6 @@ dependencies {
         pluginComposedModule(implementation(project("args-provider-python")))
         pluginComposedModule(implementation(project("args-provider-rider")))
         pluginComposedModule(implementation(project("args-provider-rust")))
-        pluginComposedModule(implementation(project("args-provider-sh")))
     }
 }
 

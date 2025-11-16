@@ -25,7 +25,7 @@ class RiderPlatformExtension : PlatformExtension {
                 "runConfiguration",
                 Messages.message("properties.runConfigurationFilters"),
                 Messages.message("properties.runConfigurationFilters.desc"),
-                items.sorted()
+                items.distinct().sorted()
             ),
             FilterDefinition(
                 "platform",

@@ -1,4 +1,4 @@
-package com.github.rebel000.cmdlineargs.provider.sh
+package com.github.rebel000.cmdlineargs.provider
 
 import com.github.rebel000.cmdlineargs.ArgumentsAdapter
 import com.github.rebel000.cmdlineargs.extensions.ArgumentsAdapterProviderExtension
@@ -11,17 +11,20 @@ internal class ShRunConfigurationAdapterProvider : ArgumentsAdapterProviderExten
     }
 
     override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
-        return (s.configuration as? ShRunConfiguration)?.let { ShRunConfigurationAdapter(s) }
+        return when (s.configuration) {
+            is ShRunConfiguration -> ShRunConfigurationAdapter(s)
+            else -> null
+        }
     }
 
     class ShRunConfigurationAdapter(s: RunnerAndConfigurationSettings) : ArgumentsAdapter(s) {
         override fun getArguments(): String {
-            val config = settings.configuration as? ShRunConfiguration ?: return ""
+            val config = settings?.configuration as? ShRunConfiguration ?: return ""
             return config.scriptOptions ?: ""
         }
 
         override fun setArguments(value: String) {
-            val config = settings.configuration as? ShRunConfiguration ?: return
+            val config = settings?.configuration as? ShRunConfiguration ?: return
             config.scriptOptions = value
         }
     }

@@ -1,5 +1,5 @@
 <idea-plugin>
     <extensions defaultExtensionNs="com.github.rebel000.cmdlineargs.extensions">
-        <adapterProvider implementation="com.github.rebel000.cmdlineargs.provider.sh.ShRunConfigurationAdapterProvider"/>
+        <adapterProvider implementation="com.github.rebel000.cmdlineargs.provider.JavaRunConfigurationAdapterProvider"/>
     </extensions>
 </idea-plugin>
