@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package com.github.rebel000.cmdlineargs.extensions
+package com.github.rebel000.cmdlineargs.helpers
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement

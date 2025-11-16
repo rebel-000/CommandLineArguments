@@ -2,7 +2,7 @@ package com.github.rebel000.cmdlineargs.provider.rider.adapters
 
 import com.github.rebel000.cmdlineargs.ArgumentsAdapter
 import com.github.rebel000.cmdlineargs.tree.ArgumentNode
-import com.github.rebel000.cmdlineargs.extensions.matchesWildcard
+import com.github.rebel000.cmdlineargs.helpers.matchesWildcard
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.jetbrains.rider.projectView.solution
 

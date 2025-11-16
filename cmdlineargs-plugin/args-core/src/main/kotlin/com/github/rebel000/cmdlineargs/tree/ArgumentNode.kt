@@ -1,14 +1,13 @@
 package com.github.rebel000.cmdlineargs.tree
 
-import com.github.rebel000.cmdlineargs.extensions.asBooleanOrNull
-import com.github.rebel000.cmdlineargs.extensions.asJsonArrayOrNull
-import com.github.rebel000.cmdlineargs.extensions.asJsonObjectOrNull
-import com.github.rebel000.cmdlineargs.extensions.asStringOrNull
+import com.github.rebel000.cmdlineargs.helpers.asBooleanOrNull
+import com.github.rebel000.cmdlineargs.helpers.asJsonArrayOrNull
+import com.github.rebel000.cmdlineargs.helpers.asJsonObjectOrNull
+import com.github.rebel000.cmdlineargs.helpers.asStringOrNull
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.intellij.icons.AllIcons
 import com.intellij.util.ui.ThreeStateCheckBox
-import com.jetbrains.rd.generator.nova.GenerationSpec.Companion.nullIfEmpty
 import java.util.Vector
 import javax.swing.Icon
 import javax.swing.tree.MutableTreeNode
@@ -193,7 +192,7 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
                 } else {
                     jFilters.entrySet().associate { (key, value) ->
                         val values = value.asStringOrNull?.split(';')?.mapNotNull {
-                            it.trim().nullIfEmpty()
+                            it.trim().ifEmpty { null }
                         }.orEmpty()
                         Pair(key, values)
                     }

@@ -1,7 +1,7 @@
 package com.github.rebel000.cmdlineargs
 
 import com.github.rebel000.cmdlineargs.tree.ArgumentNode
-import com.github.rebel000.cmdlineargs.extensions.matchesWildcard
+import com.github.rebel000.cmdlineargs.helpers.matchesWildcard
 import com.intellij.execution.RunnerAndConfigurationSettings
 
 abstract class ArgumentsAdapter(val settings: RunnerAndConfigurationSettings) {

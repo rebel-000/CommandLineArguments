@@ -1,4 +1,4 @@
-package com.github.rebel000.cmdlineargs.extensions
+package com.github.rebel000.cmdlineargs.helpers
 
 fun String.matchesWildcard(mask: String): Boolean {
     if (this.isEmpty()) return true

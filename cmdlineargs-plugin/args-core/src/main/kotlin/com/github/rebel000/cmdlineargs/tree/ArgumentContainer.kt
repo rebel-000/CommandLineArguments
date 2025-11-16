@@ -1,7 +1,7 @@
 package com.github.rebel000.cmdlineargs.tree
 
 import com.github.rebel000.cmdlineargs.tree.visitors.TraverseVisitor
-import com.github.rebel000.cmdlineargs.extensions.asJsonArrayOrNull
+import com.github.rebel000.cmdlineargs.helpers.asJsonArrayOrNull
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import java.util.Enumeration
