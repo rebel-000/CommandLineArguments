@@ -51,7 +51,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @Service(Service.Level.PROJECT)
 class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Disposable {
     companion object {
-        const val SERIALIZE_REVISION: Int = 2
+        const val SERIALIZE_REVISION: Int = 3
         val DEFERRED_SAVE_DELAY: Duration = 500.milliseconds
 
         fun getInstance(project: Project): ArgumentsService = project.service()
@@ -302,7 +302,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             val jObject: JsonObject? = tryParseJson(jsonString, project.thisLogger())?.asJsonObjectOrNull
             if (jObject != null) {
                 val revision = (jObject.get("revision") ?: jObject.get("version"))?.asIntOrNull ?: 0
-                if (revision >= 2) {
+                if (revision >= 3) {
                     isEnabled = jObject.get("enabled")?.asBooleanOrNull ?: true
                     model.previewRoot.isExpanded = jObject.get("preview")?.asBooleanOrNull ?: true
                     val jDisabled = jObject.get("disabled")?.asJsonArrayOrNull

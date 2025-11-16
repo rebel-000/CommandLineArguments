@@ -182,7 +182,7 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
             isSingle = json.get("singleChoice")?.asBooleanOrNull == true
             val jFilters = json.get("filters")?.asJsonObjectOrNull
             if (jFilters != null) {
-                filters = if (revision >= 2) {
+                filters = if (revision >= 3) {
                     jFilters.entrySet().associate { (key, value) ->
                         val values = value.asJsonArrayOrNull?.mapNotNull { 
                             it.asStringOrNull.orEmpty().trim() 
