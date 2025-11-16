@@ -32,7 +32,8 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.components.serviceIfCreated
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
-import com.jetbrains.rd.generator.nova.GenerationSpec.Companion.nullIfEmpty
+import com.intellij.util.io.copy
+import com.intellij.util.io.move
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.BufferOverflow
@@ -44,6 +45,9 @@ import java.io.File
 import java.util.*
 import javax.swing.event.TreeModelEvent
 import javax.swing.event.TreeModelListener
+import kotlin.io.path.Path
+import kotlin.io.path.exists
+import kotlin.io.path.name
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -58,10 +62,10 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         fun getInstanceIfCreated(project: Project?): ArgumentsService? = project?.serviceIfCreated()
     }
 
-    private val adapters = mutableMapOf<Pair<String, String>, ArgumentsAdapter>()
+    private val adapters = mutableMapOf<String, ArgumentsAdapter>()
     private val saveFlow = MutableSharedFlow<Unit>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-    private val disabledConfigurations = mutableSetOf<Pair<String, String>>()
-    private var stateFile: String? = null
+    private val enabledConfigurations = mutableSetOf<String>()
+    private var stateFilePath: String = locateStateFile()
     private var _isEnabled = true
     internal val model = ArgumentTreeModel()
     internal val isSharedVisible get() = model.sharedRoot != null
@@ -171,19 +175,18 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 shouldUpdate = true
             } else if (node is InfoNode) {
                 val key = node.userdata
-                if (key is Pair<*, *> && key.first is String && key.second is String) {
-                    val key = Pair(key.first as String, key.second as String)
+                if (key is String) {
                     val adapter = adapters[key]
                     if (adapter != null) {
-                        adapter.isEnabled = node.isChecked
+                        adapter.enabled = node.isChecked
                         if (node.isChecked) {
                             val visitor = CollectArgsVisitor(adapter.predicate())
                             model.sharedRoot?.traverse(visitor)
                             model.projectRoot.traverse(visitor)
                             adapter.setArguments(visitor.toString())
-                            disabledConfigurations.remove(key)
+                            enabledConfigurations.add(key)
                         } else {
-                            disabledConfigurations.add(key)
+                            enabledConfigurations.remove(key)
                         }
                         updatePreview()
                         save()
@@ -198,32 +201,49 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     internal fun onProcessStarting(s: RunnerAndConfigurationSettings?) {
-        if (isEnabled && s != null) {
-            getAdapter(s)?.onStart()
+        if (!isEnabled || s == null) {
+            return
+        }
+
+        val adapter = getAdapter(s)
+        if (adapter != null) {
+            adapter.onStart()
+        } else {
+            val adapter = createAdapter(s)
+            if (adapter != null && adapter.trusted) {
+                val visitor = CollectArgsVisitor(adapter.predicate())
+                model.sharedRoot?.traverse(visitor)
+                model.projectRoot.traverse(visitor)
+                adapter.setArguments(visitor.toString())
+            }
         }
     }
 
     internal fun onProcessStarted(s: RunnerAndConfigurationSettings?) {
-        if (isEnabled && s != null) {
-            getAdapter(s)?.onCleanup()
+        if (!isEnabled || s == null) {
+            return
         }
+
+        getAdapter(s)?.onCleanup()
     }
 
     internal fun onProcessNotStarted(s: RunnerAndConfigurationSettings?) {
-        if (isEnabled && s != null) {
-            getAdapter(s)?.onCleanup()
+        if (!isEnabled || s == null) {
+            return
         }
+
+        getAdapter(s)?.onCleanup()
     }
 
     internal fun onRunConfigurationAdded(s: RunnerAndConfigurationSettings) {
-        val key = Pair(s.type.id, s.name)
+        val key = s.getArgumentsAdapterKey()
         if (adapters.containsKey(key)) {
             project.thisLogger().warn("[com.github.rebel000.cmdlineargs] Adapter for $key already exists")
             return
         }
         val adapter = createAdapter(s)
         if (adapter != null) {
-            adapter.isEnabled = !disabledConfigurations.contains(key)
+            adapter.enabled = enabledConfigurations.contains(key)
             adapters[key] = adapter
         }
         update()
@@ -231,19 +251,19 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     internal fun onRunConfigurationChanged(s: RunnerAndConfigurationSettings, existingId: String?) {
-        val oldKey = existingId?.let { Pair(s.type.id, it) }
-        val newKey = Pair(s.type.id, s.name)
+        val oldKey = existingId?.let { "${s.type.id}:it" }
+        val newKey = s.getArgumentsAdapterKey()
         if (oldKey != null && newKey != oldKey) {
             var adapter = getAdapter(s)
             if (adapter != null) {
                 adapters.remove(oldKey)
-                disabledConfigurations.remove(oldKey)
+                enabledConfigurations.remove(oldKey)
             } else {
                 adapter = createAdapter(s)
             }
             if (adapter != null) {
-                if (!adapter.isEnabled) {
-                    disabledConfigurations.add(newKey)
+                if (adapter.enabled) {
+                    enabledConfigurations.add(newKey)
                 }
                 adapters[newKey] = adapter
             }
@@ -253,9 +273,9 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     internal fun onRunConfigurationRemoved(s: RunnerAndConfigurationSettings) {
-        val key = Pair(s.type.id, s.name)
+        val key = s.getArgumentsAdapterKey()
         adapters.remove(key)
-        disabledConfigurations.remove(key)
+        enabledConfigurations.remove(key)
         update()
         updateCopyActions()
     }
@@ -273,21 +293,16 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             }
         }
         if (s.configuration is CommonProgramRunConfigurationParameters) {
-            return object : ArgumentsAdapter(s) {
-                override fun getArguments(): String {
-                    return (settings.configuration as? CommonProgramRunConfigurationParameters)?.programParameters ?: ""
-                }
-                override fun setArguments(value: String) {
-                    (settings.configuration as? CommonProgramRunConfigurationParameters)?.programParameters = value.nullIfEmpty()
-                }
+            return CommonProgramRunConfigurationParametersAdapter(s).apply { 
+                trusted = false
             }
         }
         return null
     }
 
     private fun getAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
-        val key = Pair(s.type.id, s.name)
-        return adapters[key]
+        val adapter = adapters[s.getArgumentsAdapterKey()]
+        return adapter?.takeIf { it.settings === s }
     }
 
     private fun getSharedState(): ArgumentsSharedStorage.State {
@@ -295,8 +310,8 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     internal fun reload() {
-        val stateFile = File(stateFile ?: locateStateFile())
-        this.stateFile = stateFile.path
+        stateFilePath = locateStateFile()
+        val stateFile = File(stateFilePath)
         if (stateFile.exists()) {
             val jsonString = stateFile.readText()
             val jObject: JsonObject? = tryParseJson(jsonString, project.thisLogger())?.asJsonObjectOrNull
@@ -305,17 +320,8 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 if (revision >= 3) {
                     isEnabled = jObject.get("enabled")?.asBooleanOrNull ?: true
                     model.previewRoot.isExpanded = jObject.get("preview")?.asBooleanOrNull ?: true
-                    val jDisabled = jObject.get("disabled")?.asJsonArrayOrNull
-                    if (jDisabled != null) {
-                        for (it in jDisabled) {
-                            if (it is JsonArray && it.size() == 2) {
-                                val type = it[0].asStringOrNull
-                                val name = it[1].asStringOrNull
-                                if (type != null && name != null) {
-                                    disabledConfigurations.add(Pair(type, name))
-                                }
-                            }
-                        }
+                    jObject.get("enabledConfigs")?.asJsonArrayOrNull?.forEach {
+                        enabledConfigurations.add(it.asStringOrNull ?: return@forEach)
                     }
                     val filters = getFilters().map { it.key }
                     val jRoot = jObject.get("root")?.asJsonObjectOrNull
@@ -369,22 +375,15 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     private fun save() {
-        val stateFile = File(stateFile ?: locateStateFile())
-        this.stateFile = stateFile.path
+        val stateFile = File(stateFilePath)
         val jObject = JsonObject()
         jObject.addProperty("revision", SERIALIZE_REVISION)
         jObject.addProperty("enabled", isEnabled)
         jObject.addProperty("preview", model.previewRoot.isExpanded)
-        jObject.add("disabled", JsonArray().apply {
+        jObject.add("enabledConfigs", JsonArray().apply {
             for (node in model.previewRoot.children()) {
                 if (node is InfoNode && !node.isChecked) {
-                    val key = node.userdata
-                    if (key is Pair<*, *> && key.first is String && key.second is String) {
-                        add(JsonArray().apply {
-                            add(key.first as String)
-                            add(key.second as String)
-                        })
-                    }
+                    (node.userdata as? String)?.let { add(it) }
                 }
             }
         })
@@ -404,23 +403,30 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     private fun locateStateFile(): String {
-        val projectDir = File(project.basePath!!)
-        val projectSettingsFile = File(projectDir, project.name + ".ddargs.json")
-        if (!projectSettingsFile.exists() && !PlatformExtension.EP_NAME.extensions.any { it.isRider() }) {
-            val ideaDir = projectDir.resolve(Project.DIRECTORY_STORE_FOLDER)
-            if (ideaDir.isDirectory()) {
-                return ideaDir.resolve(project.name + ".ddargs.json").path
+        if (PlatformExtension.EP_NAME.extensions.any { it.isRider() }) {
+            val riderConfig = Path(project.basePath!!).resolve(project.name + ".cmdlineargs.json")
+            val oldRiderConfig = Path(project.basePath!!).resolve(project.name + ".ddargs.json")
+            if (oldRiderConfig.exists()) {
+                oldRiderConfig.copy(riderConfig)
+                oldRiderConfig.move(oldRiderConfig.parent.resolve(oldRiderConfig.name + ".json.bak"))
             }
+            return riderConfig.toString()
         }
-        return projectSettingsFile.path
+        val projectDir = Path(project.basePath!!)
+        val workspaceDir = project.workspaceFile?.parent ?: project.projectFile?.parent
+        val rootConfig = projectDir.resolve(".cmdlineargs.json")
+        if (rootConfig.exists() || workspaceDir == null) {
+            return rootConfig.toString()
+        }
+        return workspaceDir.toNioPath().resolve(".cmdlineargs.json").toString()
     }
 
     private fun update() {
         if (isEnabled) {
             val visitors = mutableListOf<CollectArgsVisitor>()
-            val collectArgsVisitorMap = mutableMapOf<Pair<String, String>, CollectArgsVisitor>()
+            val collectArgsVisitorMap = mutableMapOf<String, CollectArgsVisitor>()
             for ((key, value) in adapters) {
-                if (value.isEnabled) {
+                if (value.enabled) {
                     val visitor = CollectArgsVisitor(value.predicate())
                     visitors.add(visitor)
                     collectArgsVisitorMap[key] = visitor
@@ -459,7 +465,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             model.sharedRoot?.traverse(multiVisitor)
             model.projectRoot.traverse(multiVisitor)
             for ((key, value) in adapters) {
-                if (value.isEnabled) {
+                if (value.enabled) {
                     val arguments = collectArgsVisitorMap[key]?.toString() ?: ""
                     value.setArguments(arguments)
                 }
@@ -505,9 +511,9 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             val isSupported = adapter != null
             node.isEnabled = isSupported
             if (isSupported) {
-                node.isChecked = adapter.isEnabled
+                node.isChecked = adapter.enabled
                 node.icon = when {
-                    !isEnabled || !adapter.isEnabled -> AllIcons.Actions.Pause
+                    !isEnabled || !adapter.enabled -> AllIcons.Actions.Pause
                     isActive -> AllIcons.Actions.Execute
                     else -> AllIcons.Toolwindows.ToolWindowRun
                 }
@@ -515,8 +521,14 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                     isActive -> InfoNode.SUCCESS_TEXT_ATTRIBUTES
                     else -> null
                 }
-                node.text = "[${config.type.displayName}] ${config.name}: ${adapter.getArguments()}"
-                node.userdata = Pair(config.type.id, config.name)
+                node.text = "${config.getArgumentsAdapterName()}: ${adapter.getArguments()}"
+                if (!adapter.trusted) {
+                    node.icon = AllIcons.General.ShowWarning
+                    node.tooltip = "This type of configuration has not been tested.\nIt may not work as expected or even broke run configuration."
+                } else {
+                    node.tooltip = null
+                }
+                node.userdata = adapter.key
             } else {
                 node.icon = AllIcons.Run.ShowIgnored
                 node.style = when {
@@ -524,6 +536,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                     else -> null
                 }
                 node.text = "[${config.type.displayName}] ${config.name}: ${Messages.message("toolwindow.notSupportedNode")}"
+                node.tooltip = null
                 node.userdata = null
             }
         }
