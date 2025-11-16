@@ -6,9 +6,13 @@
 
 ### Added
 
-- 2025.3-EAP support
+- 2025.3 support
 - Run configuration arguments preview
 - CLion, Java/Kotlin, Python, Rust support
+
+### Changed
+
+- State file renamed from <solution>.ddargs.json to <solution>.cmdlineargs.json for Rider
 
 ## 2.1.3 - 2025-08-15
 
