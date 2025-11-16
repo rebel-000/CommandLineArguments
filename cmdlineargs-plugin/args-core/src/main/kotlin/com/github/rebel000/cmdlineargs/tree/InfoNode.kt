@@ -33,6 +33,7 @@ internal class InfoNode(var text: String, var icon: Icon? = null, var style: Sim
     }
 
     var userdata: Any? = null
+    var tooltip: String? = null
 
     init {
         isEnabled = false
