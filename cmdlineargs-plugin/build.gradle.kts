@@ -155,13 +155,13 @@ intellijPlatformTesting {
 
         runPluginWithIdeTask(IntelliJPlatformType.IntellijIdeaUltimate) {
             plugins {
-                compatiblePlugins("com.jetbrains.rust")
+                compatiblePlugins("org.toml.lang", "PythonCore")
             }
         }
         runPluginWithIdeTask(IntelliJPlatformType.CLion)
         runPluginWithIdeTask(IntelliJPlatformType.PyCharmProfessional)
         runPluginWithIdeTask(IntelliJPlatformType.Rider) {
-            ppWithString("provider.rider.platform.version") {
+            ppWithString("rider.platform.version") {
                 this.version = it
             }
         }
@@ -180,9 +180,5 @@ fun IntelliJPlatformTestingExtension.runPluginWithIdeTask(
         this.version = ppString("platform.version")
         this.sandboxDirectory = intellijPlatform.sandboxContainer.dir("${name.lowercase()}-sandbox")
         configure()
-
-        plugins {
-            compatiblePlugins("org.toml.lang", "PythonCore")
-        }
     })
 }
