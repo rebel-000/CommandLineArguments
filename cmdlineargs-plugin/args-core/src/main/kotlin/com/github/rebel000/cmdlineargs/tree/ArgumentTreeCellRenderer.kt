@@ -11,6 +11,29 @@ import javax.swing.JTree
 internal class ArgumentTreeCellRenderer : CheckboxTree.CheckboxTreeCellRenderer(true, false) {
     val radioButton = JBRadioButton().apply { isOpaque = false }
 
+    private fun showRadioButton() {
+        threeStateCheckBox.isVisible = false
+        radioButton.isVisible = true
+        if (radioButton.parent == null) {
+            add(radioButton, BorderLayout.WEST)
+            remove(threeStateCheckBox)
+        }
+    }
+
+    private fun showCheckbox() {
+        threeStateCheckBox.isVisible = true
+        radioButton.isVisible = false
+        if (radioButton.parent != null) {
+            add(threeStateCheckBox, BorderLayout.WEST)
+            remove(radioButton)
+        }
+    }
+
+    private fun hideControl() {
+        threeStateCheckBox.isVisible = false
+        radioButton.isVisible = false
+    }
+
     override fun customizeRenderer(
         tree: JTree,
         value: Any,
@@ -23,10 +46,14 @@ internal class ArgumentTreeCellRenderer : CheckboxTree.CheckboxTreeCellRenderer(
         val fgColor: Color = textRenderer.foreground
         when (value) {
             is InfoNode -> {
-                threeStateCheckBox.isVisible = value.isEnabled
-                radioButton.isVisible = false
+                if (value.isEnabled) {
+                    showCheckbox()
+                } else {
+                    hideControl()
+                }
                 textRenderer.icon = value.icon
                 textRenderer.append(value.toString(), value.style ?: SimpleTextAttributes.REGULAR_ATTRIBUTES)
+                toolTipText = value.tooltip
             }
 
             is ArgumentNode -> {
@@ -51,13 +78,14 @@ internal class ArgumentTreeCellRenderer : CheckboxTree.CheckboxTreeCellRenderer(
                     textRenderer.append("${value.filtersString} ", SimpleTextAttributes.GRAYED_BOLD_ATTRIBUTES)
                 }
                 textRenderer.append(value.description, SimpleTextAttributes.GRAYED_ITALIC_ATTRIBUTES)
+                toolTipText = null
             }
 
             else -> {
-                threeStateCheckBox.isVisible = false
-                radioButton.isVisible = false
+                hideControl()
                 textRenderer.icon = null
                 textRenderer.append(value.toString())
+                toolTipText = null
             }
         }
         textRenderer.foreground = fgColor
