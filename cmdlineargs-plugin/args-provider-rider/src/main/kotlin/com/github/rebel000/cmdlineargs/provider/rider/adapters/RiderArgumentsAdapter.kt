@@ -12,6 +12,7 @@ internal abstract class RiderArgumentsAdapter(s: RunnerAndConfigurationSettings)
         val activeConfigurationPlatform = configuration.project.solution.solutionProperties.activeConfigurationPlatform()
         val activeConfiguration = activeConfigurationPlatform?.configuration ?: ""
         val activePlatform = activeConfigurationPlatform?.platform ?: ""
+        val name = filterKey
         return {
             val runConfigurationFilters = it.filters["runConfiguration"].orEmpty()
             val platformFilters = it.filters["platform"].orEmpty()

@@ -2,6 +2,7 @@ package com.github.rebel000.cmdlineargs.provider.rider
 
 import com.github.rebel000.cmdlineargs.extensions.PlatformExtension
 import com.github.rebel000.cmdlineargs.FilterDefinition
+import com.github.rebel000.cmdlineargs.helpers.getArgumentsAdapterFilterKey
 import com.github.rebel000.cmdlineargs.provider.rider.resources.RiderMessages
 import com.github.rebel000.cmdlineargs.resources.Messages
 import com.intellij.execution.RunManager
@@ -13,7 +14,7 @@ class RiderPlatformExtension : PlatformExtension {
     override fun isRider(): Boolean = true
 
     override fun getFilters(project: Project): List<FilterDefinition> {
-        val items = (RunManager.getInstanceIfCreated(project)?.allConfigurationsList.orEmpty()).map { it.name }
+        val items = (RunManager.getInstanceIfCreated(project)?.allSettings.orEmpty()).map { it.getArgumentsAdapterFilterKey() }
         val configurationsAndPlatformsCollection =
             project.solution.solutionProperties.configurationsAndPlatformsCollection.valueOrEmpty()
         val (platformFilters, configurationFilters) = configurationsAndPlatformsCollection

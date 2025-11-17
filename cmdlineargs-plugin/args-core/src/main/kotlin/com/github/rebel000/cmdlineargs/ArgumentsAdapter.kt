@@ -1,5 +1,6 @@
 package com.github.rebel000.cmdlineargs
 
+import com.github.rebel000.cmdlineargs.helpers.getArgumentsAdapterFilterKey
 import com.github.rebel000.cmdlineargs.helpers.getArgumentsAdapterKey
 import com.github.rebel000.cmdlineargs.tree.ArgumentNode
 import com.github.rebel000.cmdlineargs.helpers.matchesWildcard
@@ -10,13 +11,14 @@ abstract class ArgumentsAdapter(settings: RunnerAndConfigurationSettings) {
     companion object {
         fun runConfigurationPredicate(name: String): ((ArgumentNode) -> Boolean) {
             return { it: ArgumentNode ->
-                it.filters["runConfiguration"]?.let { f -> f.any{ name.matchesWildcard(it) }} ?: true
+                it.filters["runConfiguration"]?.any{ name.matchesWildcard(it) } ?: true
             }
         }
     }
 
     private val _settings = WeakReference(settings)
     val key = settings.getArgumentsAdapterKey()
+    val filterKey = settings.getArgumentsAdapterFilterKey()
     val type = settings.type
     val name = settings.name
     val settings: RunnerAndConfigurationSettings?
@@ -28,5 +30,5 @@ abstract class ArgumentsAdapter(settings: RunnerAndConfigurationSettings) {
     abstract fun setArguments(value: String)
     open fun onStart() = Unit
     open fun onCleanup() = Unit
-    open fun predicate(): ((ArgumentNode) -> Boolean) = runConfigurationPredicate(name)
+    open fun predicate(): ((ArgumentNode) -> Boolean) = runConfigurationPredicate(filterKey)
 }

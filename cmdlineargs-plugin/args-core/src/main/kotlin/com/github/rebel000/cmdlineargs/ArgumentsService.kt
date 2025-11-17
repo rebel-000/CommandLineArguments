@@ -146,8 +146,9 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 "runConfiguration",
                 Messages.message("properties.runConfigurationFilters"),
                 Messages.message("properties.runConfigurationFilters.desc"),
-            RunManager.getInstanceIfCreated(project)?.allConfigurationsList.orEmpty().map { it.name }
-        ))
+                RunManager.getInstanceIfCreated(project)?.allSettings.orEmpty().map { it.getArgumentsAdapterFilterKey() }.distinct()
+            )
+        )
     }
 
     internal fun toggleShared(enabled: Boolean) {
