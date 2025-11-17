@@ -1,9 +1,8 @@
 package com.github.rebel000.cmdlineargs.tree
 
+import com.github.rebel000.cmdlineargs.serialization.ObjectReader
+import com.github.rebel000.cmdlineargs.serialization.ObjectWriter
 import com.github.rebel000.cmdlineargs.tree.visitors.TraverseVisitor
-import com.github.rebel000.cmdlineargs.helpers.asJsonArrayOrNull
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
 import java.util.Enumeration
 import javax.swing.tree.TreeNode
 
@@ -43,26 +42,22 @@ open class ArgumentContainer(var name: String) : ArgumentTreeNodeBase() {
         }
     }
 
-    open fun serialize(): JsonObject {
-        val result = JsonObject()
-        val items = JsonArray(childCount)
-        result.add("items", items)
+    internal open fun serialize(obj: ObjectWriter) {
+        val oItems = obj.addArray("items", childCount)
         for (child in innerArguments()) {
-            items.add(child.serialize())
+            child.serialize(oItems.addObject())
         }
-        return result
     }
 
-    open fun deserialize(json: JsonObject, revision: Int, postprocess: (ArgumentContainer) -> Unit = {}): Boolean {
+    internal open fun deserialize(obj: ObjectReader, revision: Int, postprocess: (ArgumentContainer) -> Unit = {}): Boolean {
         removeAllChildren()
-        val items = json.get("items")?.asJsonArrayOrNull
-        if (items != null) {
-            for (item in items) {
-                if (item.isJsonObject) {
-                    val childNode = ArgumentNode("")
-                    if (childNode.deserialize(item.asJsonObject, revision, postprocess)) {
-                        add(childNode)
-                    }
+        val oItems = obj.get("items").asArray
+        if (oItems != null) {
+            for (it in oItems) {
+                val item = it.asObject ?: continue
+                val childNode = ArgumentNode("")
+                if (childNode.deserialize(item, revision, postprocess)) {
+                    add(childNode)
                 }
             }
             postprocess(this)

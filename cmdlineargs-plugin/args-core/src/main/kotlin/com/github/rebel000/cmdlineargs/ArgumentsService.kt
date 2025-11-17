@@ -3,20 +3,16 @@ package com.github.rebel000.cmdlineargs
 import com.github.rebel000.cmdlineargs.actions.CopyArgsAction
 import com.github.rebel000.cmdlineargs.extensions.ArgumentsAdapterProviderExtension
 import com.github.rebel000.cmdlineargs.extensions.PlatformExtension
+import com.github.rebel000.cmdlineargs.helpers.*
 import com.github.rebel000.cmdlineargs.resources.Messages
+import com.github.rebel000.cmdlineargs.serialization.ObjectReader
+import com.github.rebel000.cmdlineargs.serialization.json.JsonObjectReader
+import com.github.rebel000.cmdlineargs.serialization.json.JsonObjectWriter
+import com.github.rebel000.cmdlineargs.serialization.xml.XmlObjectReader
+import com.github.rebel000.cmdlineargs.serialization.xml.XmlObjectWriter
 import com.github.rebel000.cmdlineargs.tree.*
 import com.github.rebel000.cmdlineargs.tree.visitors.CollectArgsVisitor
 import com.github.rebel000.cmdlineargs.tree.visitors.TraverseVisitor
-import com.github.rebel000.cmdlineargs.helpers.asBooleanOrNull
-import com.github.rebel000.cmdlineargs.helpers.asIntOrNull
-import com.github.rebel000.cmdlineargs.helpers.asJsonArrayOrNull
-import com.github.rebel000.cmdlineargs.helpers.asJsonObjectOrNull
-import com.github.rebel000.cmdlineargs.helpers.asStringOrNull
-import com.github.rebel000.cmdlineargs.helpers.getArgumentsAdapterKey
-import com.github.rebel000.cmdlineargs.helpers.getArgumentsAdapterName
-import com.github.rebel000.cmdlineargs.helpers.tryParseJson
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
 import com.intellij.execution.CommonProgramRunConfigurationParameters
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
@@ -64,8 +60,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
 
     private val adapters = mutableMapOf<String, ArgumentsAdapter>()
     private val saveFlow = MutableSharedFlow<Unit>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-    private val enabledConfigurations = mutableSetOf<String>()
-    private var stateFilePath: String = locateStateFile()
+    private var stateFilePath: String? = locateStateFile()
     private var _isEnabled = true
     internal val model = ArgumentTreeModel()
     internal val isSharedVisible get() = model.sharedRoot != null
@@ -148,17 +143,17 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         }
         return listOf(
             FilterDefinition(
-            "runConfiguration",
-            Messages.message("properties.runConfigurationFilters"),
-            Messages.message("properties.runConfigurationFilters.desc"),
+                "runConfiguration",
+                Messages.message("properties.runConfigurationFilters"),
+                Messages.message("properties.runConfigurationFilters.desc"),
             RunManager.getInstanceIfCreated(project)?.allConfigurationsList.orEmpty().map { it.name }
         ))
     }
 
     internal fun toggleShared(enabled: Boolean) {
         if (isSharedVisible != enabled) {
-            val sharedState = getSharedState()
-            sharedState.showSharedNode = enabled
+            val globalState = getGlobalStorage()
+            globalState.showSharedNode = enabled
             if (enabled) {
                 reloadShared()
             } else {
@@ -184,9 +179,6 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                             model.sharedRoot?.traverse(visitor)
                             model.projectRoot.traverse(visitor)
                             adapter.setArguments(visitor.toString())
-                            enabledConfigurations.add(key)
-                        } else {
-                            enabledConfigurations.remove(key)
                         }
                         updatePreview()
                         save()
@@ -243,7 +235,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         }
         val adapter = createAdapter(s)
         if (adapter != null) {
-            adapter.enabled = enabledConfigurations.contains(key)
+            adapter.enabled = getProjectStorage().enabledConfigs.contains(key)
             adapters[key] = adapter
         }
         update()
@@ -257,13 +249,13 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             var adapter = getAdapter(s)
             if (adapter != null) {
                 adapters.remove(oldKey)
-                enabledConfigurations.remove(oldKey)
+                getProjectStorage().enabledConfigs.remove(oldKey)
             } else {
                 adapter = createAdapter(s)
             }
             if (adapter != null) {
                 if (adapter.enabled) {
-                    enabledConfigurations.add(newKey)
+                    getProjectStorage().enabledConfigs.add(newKey)
                 }
                 adapters[newKey] = adapter
             }
@@ -275,7 +267,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     internal fun onRunConfigurationRemoved(s: RunnerAndConfigurationSettings) {
         val key = s.getArgumentsAdapterKey()
         adapters.remove(key)
-        enabledConfigurations.remove(key)
+        getProjectStorage().enabledConfigs.remove(key)
         update()
         updateCopyActions()
     }
@@ -305,41 +297,48 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         return adapter?.takeIf { it.settings === s }
     }
 
-    private fun getSharedState(): ArgumentsSharedStorage.State {
-        return ApplicationManager.getApplication().getService(ArgumentsSharedStorage::class.java).state
+    private fun getGlobalStorage(): ArgumentsGlobalStorage.State {
+        return ArgumentsGlobalStorage.getInstance().state
+    }
+
+    private fun getProjectStorage(): ArgumentsProjectStorage.State {
+        return ArgumentsProjectStorage.getInstance(project).state
     }
 
     internal fun reload() {
         stateFilePath = locateStateFile()
-        val stateFile = File(stateFilePath)
-        if (stateFile.exists()) {
-            val jsonString = stateFile.readText()
-            val jObject: JsonObject? = tryParseJson(jsonString, project.thisLogger())?.asJsonObjectOrNull
-            if (jObject != null) {
-                val revision = (jObject.get("revision") ?: jObject.get("version"))?.asIntOrNull ?: 0
-                if (revision >= 3) {
-                    isEnabled = jObject.get("enabled")?.asBooleanOrNull ?: true
-                    model.previewRoot.isExpanded = jObject.get("preview")?.asBooleanOrNull ?: true
-                    jObject.get("enabledConfigs")?.asJsonArrayOrNull?.forEach {
-                        enabledConfigurations.add(it.asStringOrNull ?: return@forEach)
-                    }
-                    val filters = getFilters().map { it.key }
-                    val jRoot = jObject.get("root")?.asJsonObjectOrNull
-                    if (jRoot != null) {
-                        model.projectRoot.deserialize(jRoot, revision) { node ->
-                            if (node is ArgumentNode) {
-                                node.filters = node.filters.filter { it.key in filters }
-                            }
-                        }
-                    }
-                } else {
-                    val filters = getFilters().map { it.key }
-                    isEnabled = jObject.get("isEnabled")?.asBooleanOrNull ?: true
-                    model.previewRoot.isExpanded = true
-                    model.projectRoot.deserialize(jObject, 1) { node ->
+        var serializer: ObjectReader? = null
+        if (stateFilePath != null) {
+            val stateFile = File(stateFilePath!!)
+            if (stateFile.exists()) {
+                tryParseJson(stateFile.readText(), project.thisLogger())?.asJsonObjectOrNull?.let { 
+                    serializer = JsonObjectReader(it)
+                }
+            }
+        } else {
+            serializer = XmlObjectReader(getProjectStorage().args)
+        }
+        if (serializer != null) {
+            val revision = serializer.get("revision").asInt ?: serializer.get("version").asInt ?: 0
+            if (revision >= 3) {
+                isEnabled = serializer.get("enabled").asBoolean ?: true
+                model.previewRoot.isExpanded = serializer.get("preview").asBoolean ?: true
+                val filters = getFilters().map { it.key }
+                val oRoot = serializer.get("root").asObject
+                if (oRoot != null) {
+                    model.projectRoot.deserialize(oRoot, revision) { node ->
                         if (node is ArgumentNode) {
                             node.filters = node.filters.filter { it.key in filters }
                         }
+                    }
+                }
+            } else if (revision > 0) {
+                val filters = getFilters().map { it.key }
+                isEnabled = serializer.get("isEnabled").asBoolean ?: true
+                model.previewRoot.isExpanded = true
+                model.projectRoot.deserialize(serializer, 1) { node ->
+                    if (node is ArgumentNode) {
+                        node.filters = node.filters.filter { it.key in filters }
                     }
                 }
             }
@@ -351,58 +350,71 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     private fun reloadShared() {
-        val sharedState = getSharedState()
-        val revision = sharedState.revision
-        var jsonString = sharedState.sharedArgs ?: return
-        if (revision == SERIALIZE_REVISION) {
-            jsonString = Base64.getDecoder().decode(jsonString).toString(Charsets.UTF_8)
+        val globalState = getGlobalStorage()
+        val revision = globalState.revision
+        val serializer = if (revision >= 3) {
+            XmlObjectReader(globalState.args)
+        } else {
+            globalState.sharedArgs?.let {
+                val jsonString = Base64.getDecoder().decode(it).toString(Charsets.UTF_8)
+                tryParseJson(jsonString, project.thisLogger())?.asJsonObjectOrNull?.let { json ->
+                    JsonObjectReader(json)
+                }
+            }
         }
-        if (jsonString.isNotEmpty()) {
-            val jObject: JsonObject? = tryParseJson(jsonString, project.thisLogger())?.asJsonObjectOrNull
-            if (jObject != null) {
-                val node = ArgumentContainer(Messages.message("toolwindow.sharedNode"))
-                val filters = getFilters().map { it.key }
-                val isValid = node.deserialize(jObject, revision) { node ->
-                    if (node is ArgumentNode) {
-                        node.filters = node.filters.filter { it.key in filters }
-                    }
+        if (serializer != null) {
+            val node = ArgumentContainer(Messages.message("toolwindow.sharedNode"))
+            val filters = getFilters().map { it.key }
+            val isValid = node.deserialize(serializer, revision) { node ->
+                if (node is ArgumentNode) {
+                    node.filters = node.filters.filter { it.key in filters }
                 }
-                if (isValid) {
-                    model.sharedRoot = node
-                }
+            }
+            if (isValid) {
+                model.sharedRoot = node
             }
         }
     }
 
     private fun save() {
-        val stateFile = File(stateFilePath)
-        val jObject = JsonObject()
-        jObject.addProperty("revision", SERIALIZE_REVISION)
-        jObject.addProperty("enabled", isEnabled)
-        jObject.addProperty("preview", model.previewRoot.isExpanded)
-        jObject.add("enabledConfigs", JsonArray().apply {
-            for (node in model.previewRoot.children()) {
-                if (node is InfoNode && !node.isChecked) {
-                    (node.userdata as? String)?.let { add(it) }
+        val serializer = if (stateFilePath != null) {
+            JsonObjectWriter()
+        }
+        else {
+            XmlObjectWriter("state")
+        }
+        serializer.add("revision", SERIALIZE_REVISION)
+        serializer.add("enabled", isEnabled)
+        serializer.add("preview", model.previewRoot.isExpanded)
+        model.projectRoot.serialize(serializer.addObject("root"))
+        when (serializer) {
+            is JsonObjectWriter -> File(stateFilePath!!).writeText(serializer.jObject.toString())
+            is XmlObjectWriter -> getProjectStorage().args = serializer.xElement
+        }
+        getProjectStorage().enabledConfigs = model.previewRoot.children()
+            .asSequence().mapNotNull {
+                if (it is InfoNode && it.isChecked) {
+                    it.userdata as? String
+                } else {
+                    null
                 }
-            }
-        })
-        jObject.add("root", model.projectRoot.serialize())
-        stateFile.writeText(jObject.toString())
+            }.toMutableSet()
         saveShared()
     }
 
     private fun saveShared() {
         val sharedNode = model.sharedRoot
         if (sharedNode != null) {
-            val sharedState = getSharedState()
-            val jsonString = sharedNode.serialize().toString()
-            sharedState.revision = SERIALIZE_REVISION
-            sharedState.sharedArgs = Base64.getEncoder().encodeToString(jsonString.toByteArray(Charsets.UTF_8))
+            val serializer = XmlObjectWriter("args")
+            val globalState = getGlobalStorage()
+            sharedNode.serialize(serializer)
+            globalState.revision = SERIALIZE_REVISION
+            globalState.args = serializer.xElement
+            globalState.sharedArgs = null
         }
     }
 
-    private fun locateStateFile(): String {
+    private fun locateStateFile(): String? {
         if (PlatformExtension.EP_NAME.extensions.any { it.isRider() }) {
             val riderConfig = Path(project.basePath!!).resolve(project.name + ".cmdlineargs.json")
             val oldRiderConfig = Path(project.basePath!!).resolve(project.name + ".ddargs.json")
@@ -418,7 +430,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         if (rootConfig.exists() || workspaceDir == null) {
             return rootConfig.toString()
         }
-        return workspaceDir.toNioPath().resolve(".cmdlineargs.json").toString()
+        return null
     }
 
     private fun update() {

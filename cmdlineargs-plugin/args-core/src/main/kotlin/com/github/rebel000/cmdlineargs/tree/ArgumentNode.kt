@@ -1,11 +1,7 @@
 package com.github.rebel000.cmdlineargs.tree
 
-import com.github.rebel000.cmdlineargs.helpers.asBooleanOrNull
-import com.github.rebel000.cmdlineargs.helpers.asJsonArrayOrNull
-import com.github.rebel000.cmdlineargs.helpers.asJsonObjectOrNull
-import com.github.rebel000.cmdlineargs.helpers.asStringOrNull
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
+import com.github.rebel000.cmdlineargs.serialization.ObjectReader
+import com.github.rebel000.cmdlineargs.serialization.ObjectWriter
 import com.intellij.icons.AllIcons
 import com.intellij.util.ui.ThreeStateCheckBox
 import java.util.Vector
@@ -138,84 +134,82 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
         }
     }
 
-    override fun serialize(): JsonObject {
-        val jResult = JsonObject()
-        jResult.addProperty("name", name)
-        jResult.addProperty("desc", description)
-        jResult.addProperty("checked", isChecked)
-        val jFilters = JsonObject()
+    override fun serialize(obj: ObjectWriter) {
+        obj.add("name", name)
+        obj.add("desc", description)
+        obj.add("checked", isChecked)
+        val oFilters = obj.addObject("filters")
         for ((key, values) in filters) {
-            val jFilterValues = JsonArray()
+            val oFilterValues = oFilters.addArray(key, values.size)
             for (value in values) {
-                jFilterValues.add(value)
+                oFilterValues.add(value)
             }
-            jFilters.add(key, jFilterValues)
         }
-        jResult.add("filters", jFilters)
         if (isFolder) {
-            jResult.addProperty("param", isParameter)
+            obj.add("param", isParameter)
             if (join) {
-                jResult.addProperty("join", true)
-                jResult.addProperty("join.delimiter", joinSeparator)
-                jResult.addProperty("join.prefix", joinPrefix)
-                jResult.addProperty("join.postfix", joinPostfix)
+                obj.add("join", true)
+                obj.add("join.delimiter", joinSeparator)
+                obj.add("join.prefix", joinPrefix)
+                obj.add("join.postfix", joinPostfix)
             }
-            jResult.addProperty("expanded", isExpanded)
-            jResult.addProperty("singleChoice", isSingle)
+            obj.add("expanded", isExpanded)
+            obj.add("singleChoice", isSingle)
         }
         if (childCount > 0) {
-            val jItems = JsonArray(childCount)
-            jResult.add("items", jItems)
+            val oItems = obj.addArray("items", childCount)
             for (child in innerArguments()) {
-                jItems.add(child.serialize())
+                child.serialize(oItems.addObject())
             }
         }
-        return jResult
     }
 
-    override fun deserialize(json: JsonObject, revision: Int, postprocess: (ArgumentContainer) -> Unit): Boolean {
-        val nodeName = json.get("name")?.asStringOrNull
+    override fun deserialize(obj: ObjectReader, revision: Int, postprocess: (ArgumentContainer) -> Unit): Boolean {
+        val nodeName = obj.get("name").asString
         if (nodeName != null) {
             name = nodeName
-            description = json.get("desc")?.asStringOrNull ?: ""
-            isParameter = json.get("param")?.asBooleanOrNull == true
-            isSingle = json.get("singleChoice")?.asBooleanOrNull == true
-            val jFilters = json.get("filters")?.asJsonObjectOrNull
-            if (jFilters != null) {
+            description = obj.get("desc").asString ?: ""
+            isParameter = obj.get("param").asBoolean == true
+            isSingle = obj.get("singleChoice").asBoolean == true
+            val oFilters = obj.get("filters").asObject
+            if (oFilters != null) {
                 filters = if (revision >= 3) {
-                    jFilters.entrySet().associate { (key, value) ->
-                        val values = value.asJsonArrayOrNull?.mapNotNull { 
-                            it.asStringOrNull.orEmpty().trim() 
-                        }.orEmpty()
-                        Pair(key, values)
+                    oFilters.iterator().asSequence().associate { (key, value) ->
+                        value.asArray?.let { values ->
+                            Pair(
+                                key,
+                                values.iterator().asSequence().mapNotNull { it.asString?.trim()?.ifEmpty { null } }.toList()
+                            )
+                        } ?: Pair(key, emptyList())
                     }
                 } else {
-                    jFilters.entrySet().associate { (key, value) ->
-                        val values = value.asStringOrNull?.split(';')?.mapNotNull {
-                            it.trim().ifEmpty { null }
-                        }.orEmpty()
-                        Pair(key, values)
+                    oFilters.iterator().asSequence().associate { (key, value) ->
+                        value.asString?.let { values ->
+                            Pair(
+                                key, 
+                                values.split(';').mapNotNull { it.trim().ifEmpty { null } }.toList()
+                            )
+                        } ?: Pair(key, emptyList())
                     }
                 }
             }
-            join = json.get("join")?.asBooleanOrNull == true
-            joinSeparator = json.get("join.delimiter")?.asStringOrNull ?: ","
-            joinPrefix = json.get("join.prefix")?.asStringOrNull ?: ""
-            joinPostfix = json.get("join.postfix")?.asStringOrNull ?: ""
-            isChecked = json.get("checked")?.asBooleanOrNull == true
-            isExpanded = json.get("expanded")?.asBooleanOrNull == true
+            join = obj.get("join").asBoolean == true
+            joinSeparator = obj.get("join.delimiter").asString ?: ","
+            joinPrefix = obj.get("join.prefix").asString ?: ""
+            joinPostfix = obj.get("join.postfix").asString ?: ""
+            isChecked = obj.get("checked").asBoolean == true
+            isExpanded = obj.get("expanded").asBoolean == true
             removeAllChildren()
-            val items = json.getAsJsonArray("items")
-            if (items != null) {
+            val oItems = obj.get("items").asArray
+            if (oItems != null) {
                 isFolder = true
-                children = Vector(items.size())
-                for (item in items) {
-                    if (item.isJsonObject) {
-                        val child = ArgumentNode("")
-                        if (child.deserialize(item.asJsonObject, revision, postprocess)) {
-                            child.setParent(this)
-                            children.insertElementAt(child, children.size)
-                        }
+                children = Vector(oItems.count())
+                for (it in oItems) {
+                    val item = it.asObject ?: continue
+                    val child = ArgumentNode("")
+                    if (child.deserialize(item, revision, postprocess)) {
+                        child.setParent(this)
+                        children.insertElementAt(child, children.size)
                     }
                 }
             }

@@ -2,17 +2,22 @@ package com.github.rebel000.cmdlineargs
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.*
+import org.jdom.Element
 
 @Service(Service.Level.APP)
 @State(name = "com.github.rebel000.cmdlineargs.sharedargs", category = SettingsCategory.PLUGINS, storages = [Storage("CommandlineArgs.xml", roamingType = RoamingType.DEFAULT)])
-class ArgumentsSharedStorage : SimplePersistentStateComponent<ArgumentsSharedStorage.State>(State()) {
+class ArgumentsGlobalStorage : SimplePersistentStateComponent<ArgumentsGlobalStorage.State>(State()) {
     companion object {
-        fun getInstance(): ArgumentsSharedStorage = ApplicationManager.getApplication().getService(ArgumentsSharedStorage::class.java)
+        fun getInstance(): ArgumentsGlobalStorage = ApplicationManager.getApplication().getService(ArgumentsGlobalStorage::class.java)
     }
 
     class State : BaseState() {
+        var revision by property(ArgumentsService.SERIALIZE_REVISION)
+
+        // deprecated: use args
         var sharedArgs by string()
-        var revision by property(0)
+
         var showSharedNode by property(false)
+        var args by property(Element("args")) { it.isEmpty }
     }
 }
