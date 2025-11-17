@@ -1,26 +1,27 @@
 package com.github.rebel000.cmdlineargs.helpers
 
 fun String.matchesWildcard(mask: String): Boolean {
-    if (this.isEmpty()) return true
+    if (this.isEmpty()) return false
+    if (mask.isEmpty() || mask == "*") return true
     var tPos = 0
     var mPos = 0
     var wildcard = -1
-    var match = 0
-    while (tPos < this.length && mPos < mask.length) {
+    var backtrack = -1
+    while (tPos < this.length) {
         when {
-            this[tPos] == mask[mPos] -> {
+            mPos < mask.length && (this[tPos] == mask[mPos] || mask[mPos] == '?') -> {
                 tPos++
                 mPos++
             }
-            mask[mPos] == '*' -> {
+            mPos < mask.length && mask[mPos] == '*' -> {
                 wildcard = mPos
-                match = tPos
+                backtrack = tPos
                 mPos++
             }
             wildcard != -1 -> {
                 mPos = wildcard + 1
-                match++
-                tPos = match
+                backtrack++
+                tPos = backtrack
             }
             else -> return false
         }
