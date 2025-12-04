@@ -18,6 +18,8 @@ internal class ShRunConfigurationAdapterProvider : ArgumentsAdapterProviderExten
     }
 
     class ShRunConfigurationAdapter(s: RunnerAndConfigurationSettings) : ArgumentsAdapter(s) {
+        override fun isExperimental(): Boolean = false
+
         override fun getArguments(): String {
             val config = settings?.configuration as? ShRunConfiguration ?: return ""
             return config.scriptOptions ?: ""

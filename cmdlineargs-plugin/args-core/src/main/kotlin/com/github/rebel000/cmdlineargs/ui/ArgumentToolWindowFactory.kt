@@ -6,10 +6,11 @@ import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.content.impl.ContentImpl
 
-class ToolWindowFactory : ToolWindowFactory, DumbAware {
+class ArgumentToolWindowFactory : ToolWindowFactory, DumbAware {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        val view = ArgumentsToolWindow(project)
+        val view = ArgumentToolWindowPanel(project)
         toolWindow.setTitleActions(view.getTitleActions())
-        toolWindow.contentManager.addContent(ContentImpl(view, "", true))
+        toolWindow.setAdditionalGearActions(view.getExtraActions())
+        toolWindow.contentManager.addContent(ContentImpl(view, null, true))
     }
 }

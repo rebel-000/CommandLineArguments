@@ -1,9 +1,7 @@
 package com.github.rebel000.cmdlineargs.provider.rust
 
 import com.github.rebel000.cmdlineargs.ArgumentsAdapter
-import com.github.rebel000.cmdlineargs.CommonProgramRunConfigurationParametersAdapter
 import com.github.rebel000.cmdlineargs.extensions.ArgumentsAdapterProviderExtension
-import com.intellij.execution.CommonProgramRunConfigurationParameters
 import com.intellij.execution.RunnerAndConfigurationSettings
 import org.rust.cargo.runconfig.RsCommandConfiguration
 import org.rust.cargo.runconfig.command.CargoCommandConfiguration
@@ -18,14 +16,12 @@ internal class RustArgumentAdapterProviderProvider : ArgumentsAdapterProviderExt
         return when (s.configuration) {
             is CargoCommandConfiguration -> CargoCommandConfigurationAdapter(s)
             is RsCommandConfiguration -> RsCommandConfigurationAdapter(s)
-            else -> RsCommandConfigurationAdapter(s)
+            else -> null
         }
     }
 
     class RsCommandConfigurationAdapter(s: RunnerAndConfigurationSettings) : ArgumentsAdapter(s) {
-        init {
-            trusted = false
-        }
+        override fun isExperimental(): Boolean = true
 
         override fun getArguments(): String {
             val config = settings?.configuration as? RsCommandConfiguration ?: return ""
@@ -40,6 +36,8 @@ internal class RustArgumentAdapterProviderProvider : ArgumentsAdapterProviderExt
     }
 
     class CargoCommandConfigurationAdapter(s: RunnerAndConfigurationSettings) : ArgumentsAdapter(s) {
+        override fun isExperimental(): Boolean = false
+
         override fun getArguments(): String {
             val config = settings?.configuration as? CargoCommandConfiguration ?: return ""
             return config.programParameters ?: ""

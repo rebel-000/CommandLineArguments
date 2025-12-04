@@ -18,6 +18,9 @@ class ArgumentsGlobalStorage : SimplePersistentStateComponent<ArgumentsGlobalSto
         var sharedArgs by string()
 
         var showSharedNode by property(false)
+        var showExperimental by property(true)
+        var showUnsupported by property(true)
+
         var args by property(Element("args")) { it.isEmpty }
     }
 }

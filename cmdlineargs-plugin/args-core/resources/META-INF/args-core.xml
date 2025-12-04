@@ -36,6 +36,6 @@
                     anchor="right"
                     secondary="true"
                     icon="com.github.rebel000.cmdlineargs.resources.Icons.ToolWindow"
-                    factoryClass="com.github.rebel000.cmdlineargs.ui.ToolWindowFactory" />
+                    factoryClass="com.github.rebel000.cmdlineargs.ui.ArgumentToolWindowFactory" />
     </extensions>
 </idea-plugin>

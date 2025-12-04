@@ -18,6 +18,8 @@ internal class PythonRunConfigurationAdapterProvider : ArgumentsAdapterProviderE
     }
 
     class PythonRunConfigurationParamsAdapter(s: RunnerAndConfigurationSettings) : ArgumentsAdapter(s) {
+        override fun isExperimental(): Boolean = false
+
         override fun getArguments(): String {
             val config = settings?.configuration as? PythonRunConfigurationParams ?: return ""
             return config.scriptParameters ?: ""

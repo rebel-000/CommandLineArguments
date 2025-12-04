@@ -1,7 +1,6 @@
 package com.github.rebel000.cmdlineargs.provider
 
 import com.github.rebel000.cmdlineargs.ArgumentsAdapter
-import com.github.rebel000.cmdlineargs.CommonProgramRunConfigurationParametersAdapter
 import com.github.rebel000.cmdlineargs.extensions.ArgumentsAdapterProviderExtension
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.jetbrains.kotlin.commonNative.debugger.RunConfigurationWithExecutable
@@ -15,9 +14,13 @@ internal class KotlinRunConfigurationAdapterProvider : ArgumentsAdapterProviderE
 
     override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
         return when (s.configuration) {
-            is RunConfigurationWithExecutable -> CommonProgramRunConfigurationParametersAdapter(s)
-            is KotlinRunConfiguration -> CommonProgramRunConfigurationParametersAdapter(s)
+            is RunConfigurationWithExecutable -> KotlinRunConfigurationParamsAdapter(s)
+            is KotlinRunConfiguration -> KotlinRunConfigurationParamsAdapter(s)
             else -> null
         }
+    }
+
+    class KotlinRunConfigurationParamsAdapter(s: RunnerAndConfigurationSettings) : CommonProgramRunConfigurationParametersAdapter(s) {
+        override fun isExperimental(): Boolean = false
     }
 }

@@ -22,4 +22,6 @@ internal class JsonObjectWriter(val jObject: JsonObject = JsonObject()) : Object
         jObject.add(key, arr.jObject)
         return arr
     }
+
+    override fun toString(): String = jObject.toString()
 }

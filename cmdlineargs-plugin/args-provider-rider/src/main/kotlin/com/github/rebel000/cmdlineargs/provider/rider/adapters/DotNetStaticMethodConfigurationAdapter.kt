@@ -4,6 +4,8 @@ import com.intellij.execution.RunnerAndConfigurationSettings
 import com.jetbrains.rider.run.configurations.method.DotNetStaticMethodConfiguration
 
 internal class DotNetStaticMethodConfigurationAdapter(s: RunnerAndConfigurationSettings) : RiderArgumentsAdapter(s) {
+    override fun isExperimental(): Boolean = false
+
     override fun getArguments(): String {
         val config = settings?.configuration as? DotNetStaticMethodConfiguration ?: return ""
         return config.parameters.programParameters

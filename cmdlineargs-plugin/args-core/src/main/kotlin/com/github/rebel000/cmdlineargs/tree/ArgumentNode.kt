@@ -4,12 +4,12 @@ import com.github.rebel000.cmdlineargs.serialization.ObjectReader
 import com.github.rebel000.cmdlineargs.serialization.ObjectWriter
 import com.intellij.icons.AllIcons
 import com.intellij.util.ui.ThreeStateCheckBox
-import java.util.Vector
+import java.util.*
 import javax.swing.Icon
 import javax.swing.tree.MutableTreeNode
 
 class ArgumentNode(name: String) : ArgumentContainer(name) {
-    private var _filtersValue: Map<String, List<String>> = emptyMap()
+    private var _filtersValue: MutableMap<String, MutableSet<String>> = mutableMapOf()
     private var _filtersString: String? = null
     var description: String = ""
     var isFolder: Boolean = false
@@ -21,7 +21,7 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
     var joinPostfix: String = ""
     var state: ThreeStateCheckBox.State = ThreeStateCheckBox.State.SELECTED; private set
 
-    var filters: Map<String, List<String>>
+    var filters: MutableMap<String, MutableSet<String>>
         get() = _filtersValue
         set(value) {
             _filtersValue = value
@@ -36,51 +36,80 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
             return _filtersString!!
         }
 
-    val icon: Icon? get() {
-        return if (isFolder) {
-            if (isParameter) {
-                if (isSingle) AllIcons.Actions.GroupByModule
-                else AllIcons.Actions.GroupByModuleGroup
-            } else {
-                if (isSingle) AllIcons.Nodes.Module
-                else AllIcons.Nodes.Folder
-            }
-        } else null
+    override val controlType: Companion.ControlType get() {
+        return if ((parent as? ArgumentNode)?.isSingle == true) {
+            Companion.ControlType.RADIOBUTTON
+        } else {
+            Companion.ControlType.CHECKBOX
+        }
+    }
+
+    override val readonly: Boolean get() = false
+
+    override var icon: Icon?
+        get() {
+            return if (isFolder) {
+                if (isParameter) {
+                    if (isSingle) AllIcons.Actions.GroupByModule
+                    else AllIcons.Actions.GroupByModuleGroup
+                } else {
+                    if (isSingle) AllIcons.Nodes.Module
+                    else AllIcons.Nodes.Folder
+                }
+            } else null
+        }
+        set(_) {}
+    
+    internal fun addFilter(key: String, value: String) {
+        val values = filters.getOrPut(key) { mutableSetOf() }
+        values.add(value)
+        _filtersString = null
+    }
+
+    internal fun removeFilter(key: String, value: String) {
+        filters[key]?.remove(value)
+        _filtersString = null
     }
 
     private fun check() {
-        if (isFolder && childCount > 0) {
-            if (isSingle) {
-                if (state == ThreeStateCheckBox.State.NOT_SELECTED) {
-                    val child = getChildAt(0) as ArgumentNode
-                    child.check()
-                    state = child.state
-                } else {
-                    for (child in innerArguments()) {
-                        if (child.isChecked) {
-                            child.check()
-                            state = child.state
-                        }
-                    }
-                }
-            } else {
+        when {
+            !isFolder || childCount == 0 -> {
+                state = ThreeStateCheckBox.State.SELECTED
+            }
+
+            !isSingle -> {
                 var result: ThreeStateCheckBox.State? = null
                 for (child in innerArguments()) {
                     child.check()
                     val childStatus = child.state
-                    if (childStatus == ThreeStateCheckBox.State.DONT_CARE || childStatus != (result
-                            ?: childStatus)
-                    ) {
-                        result = ThreeStateCheckBox.State.DONT_CARE
-                        break
+                    if (childStatus == ThreeStateCheckBox.State.DONT_CARE || result != childStatus) {
+                        if (result != null) {
+                            result = ThreeStateCheckBox.State.DONT_CARE
+                            break
+                        } else {
+                            result = childStatus
+                        }
                     }
-                    result = childStatus
                 }
                 state = result ?: ThreeStateCheckBox.State.NOT_SELECTED
             }
-        } else {
-            state = ThreeStateCheckBox.State.SELECTED
+
+            state == ThreeStateCheckBox.State.NOT_SELECTED -> {
+                val child = getChildAt(0) as ArgumentNode
+                child.check()
+                state = child.state
+            }
+
+            else -> {
+                for (child in innerArguments()) {
+                    if (child.isChecked) {
+                        child.check()
+                        state = child.state
+                    }
+                }
+            }
         }
+
         isChecked = state != ThreeStateCheckBox.State.NOT_SELECTED
     }
 
@@ -92,50 +121,55 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
         state = ThreeStateCheckBox.State.NOT_SELECTED
     }
 
-    private fun update() {
+    private fun invalidate(sender: ArgumentNode?) {
         var newState: ThreeStateCheckBox.State = ThreeStateCheckBox.State.NOT_SELECTED
-        if (isSingle) {
-            for (child in innerArguments()) {
-                if (child.isChecked) {
-                    newState = child.state
-                    break
+
+        when {
+            isSingle -> {
+                if (sender != null) {
+                    for (child in innerArguments()) {
+                        if (child != sender) {
+                            child.uncheck()
+                        } else {
+                            newState = child.state
+                        }
+                    }
+                } else {
+                    innerArguments().firstOrNull { it.isChecked }?.state?.let { newState = it }
                 }
             }
-        } else if (isFolder && childCount > 0) {
-            var result: ThreeStateCheckBox.State? = null
-            for (child in innerArguments()) {
-                val childStatus = child.state
-                if (childStatus == ThreeStateCheckBox.State.DONT_CARE || childStatus != (result ?: childStatus)) {
-                    result = ThreeStateCheckBox.State.DONT_CARE
-                    break
+
+            isFolder && childCount > 0 -> {
+                var result: ThreeStateCheckBox.State? = null
+                for (child in innerArguments()) {
+                    val childStatus = child.state
+                    if (childStatus == ThreeStateCheckBox.State.DONT_CARE || childStatus != result) {
+                        if (result != null) {
+                            result = ThreeStateCheckBox.State.DONT_CARE
+                            break
+                        } else {
+                            result = childStatus
+                        }
+                    }
                 }
-                result = childStatus
+                newState = result ?: ThreeStateCheckBox.State.NOT_SELECTED
             }
-            newState = result ?: ThreeStateCheckBox.State.NOT_SELECTED
-        } else if (isChecked) {
-            newState = ThreeStateCheckBox.State.SELECTED
+            
+            isChecked -> {
+                newState = ThreeStateCheckBox.State.SELECTED
+            }
         }
+
         if (state != newState) {
             state = newState
             isChecked = state != ThreeStateCheckBox.State.NOT_SELECTED
             val p = getParent() as? ArgumentNode ?: return
-            p.updateSingle(this)
-            p.update()
-        }
-    }
-
-    private fun updateSingle(checkedNode: ArgumentNode) {
-        if (isSingle) {
-            for (child in innerArguments()) {
-                if (child != checkedNode) {
-                    child.uncheck()
-                }
-            }
+            p.invalidate(this)
         }
     }
 
     override fun serialize(obj: ObjectWriter) {
-        obj.add("name", name)
+        obj.add("name", text)
         obj.add("desc", description)
         obj.add("checked", isChecked)
         val oFilters = obj.addObject("filters")
@@ -155,8 +189,6 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
             }
             obj.add("expanded", isExpanded)
             obj.add("singleChoice", isSingle)
-        }
-        if (childCount > 0) {
             val oItems = obj.addArray("items", childCount)
             for (child in innerArguments()) {
                 child.serialize(oItems.addObject())
@@ -167,42 +199,58 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
     override fun deserialize(obj: ObjectReader, revision: Int, postprocess: (ArgumentContainer) -> Unit): Boolean {
         val nodeName = obj.get("name").asString
         if (nodeName != null) {
-            name = nodeName
+            text = nodeName
             description = obj.get("desc").asString ?: ""
             isParameter = obj.get("param").asBoolean == true
             isSingle = obj.get("singleChoice").asBoolean == true
             val oFilters = obj.get("filters").asObject
             if (oFilters != null) {
-                filters = if (revision >= 3) {
-                    oFilters.iterator().asSequence().associate { (key, value) ->
-                        value.asArray?.let { values ->
-                            Pair(
-                                key,
-                                values.iterator().asSequence().mapNotNull { it.asString?.trim()?.ifEmpty { null } }.toList()
-                            )
-                        } ?: Pair(key, emptyList())
+                if (revision >= 3) {
+                    filters = mutableMapOf()
+                    for ((key, value) in oFilters) {
+                        val valueArray = value.asArray ?: continue
+                        val filterValues = mutableSetOf<String>()
+                        for (v in valueArray) {
+                            val stringValue = v.asString ?: continue
+                            if (stringValue.isNotBlank()) {
+                                filterValues.add(stringValue)
+                            }
+                        }
+                        if (filterValues.isNotEmpty()) {
+                            filters[key] = filterValues
+                        }
                     }
                 } else {
-                    oFilters.iterator().asSequence().associate { (key, value) ->
-                        value.asString?.let { values ->
-                            Pair(
-                                key, 
-                                values.split(';').mapNotNull { it.trim().ifEmpty { null } }.toList()
-                            )
-                        } ?: Pair(key, emptyList())
+                    filters = mutableMapOf()
+                    for ((key, value) in oFilters) {
+                        val valueArray = (value.asString ?: continue).split(';').map(String::trim)
+                        val filterValues = mutableSetOf<String>()
+                        for (v in valueArray) {
+                            if (v.isNotBlank()) {
+                                filterValues.add(v)
+                            }
+                        }
+                        if (filterValues.isNotEmpty()) {
+                            filters[key] = filterValues
+                        }
                     }
                 }
             }
-            join = obj.get("join").asBoolean == true
-            joinSeparator = obj.get("join.delimiter").asString ?: ","
-            joinPrefix = obj.get("join.prefix").asString ?: ""
-            joinPostfix = obj.get("join.postfix").asString ?: ""
             isChecked = obj.get("checked").asBoolean == true
             isExpanded = obj.get("expanded").asBoolean == true
             removeAllChildren()
             val oItems = obj.get("items").asArray
-            if (oItems != null) {
-                isFolder = true
+            isFolder = if (revision >=3 ) {
+                oItems != null
+            } else {
+                oItems != null && oItems.count() > 0
+            }
+            if (isFolder) {
+                val oItems = oItems!!
+                join = obj.get("join").asBoolean == true
+                joinSeparator = obj.get("join.delimiter").asString ?: ","
+                joinPrefix = obj.get("join.prefix").asString ?: ""
+                joinPostfix = obj.get("join.postfix").asString ?: ""
                 children = Vector(oItems.count())
                 for (it in oItems) {
                     val item = it.asObject ?: continue
@@ -213,7 +261,7 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
                     }
                 }
             }
-            update()
+            invalidate(null)
             postprocess(this)
             return true
         }
@@ -228,8 +276,7 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
                 uncheck()
             }
             val p = getParent() as? ArgumentNode ?: return
-            p.updateSingle(this)
-            p.update()
+            p.invalidate(this)
         }
     }
 
@@ -240,11 +287,11 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
                 newChild.uncheck()
             }
         }
-        update()
+        invalidate(null)
     }
 
     override fun setParent(newParent: MutableTreeNode?) {
-        (parent as? ArgumentNode)?.update()
+        (parent as? ArgumentNode)?.invalidate(null)
         super.setParent(newParent)
     }
 
@@ -254,6 +301,6 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
 
     override fun toString(): String {
         if (isFolder) return super.toString()
-        return name
+        return text
     }
 }

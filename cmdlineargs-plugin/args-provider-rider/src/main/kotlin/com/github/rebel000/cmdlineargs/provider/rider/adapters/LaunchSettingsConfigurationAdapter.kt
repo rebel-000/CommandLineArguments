@@ -4,6 +4,8 @@ import com.intellij.execution.RunnerAndConfigurationSettings
 import com.jetbrains.rider.run.configurations.launchSettings.LaunchSettingsConfiguration
 
 internal class LaunchSettingsConfigurationAdapter(s: RunnerAndConfigurationSettings) : RiderArgumentsAdapter(s) {
+    override fun isExperimental(): Boolean = false
+
     override fun getArguments(): String {
         val config = settings?.configuration as? LaunchSettingsConfiguration ?: return ""
         return config.parameters.runtimeArguments

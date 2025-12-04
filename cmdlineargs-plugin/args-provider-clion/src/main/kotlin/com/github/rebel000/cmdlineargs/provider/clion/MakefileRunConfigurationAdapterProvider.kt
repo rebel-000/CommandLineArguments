@@ -18,6 +18,8 @@ class MakefileRunConfigurationAdapterProvider : ArgumentsAdapterProviderExtensio
     }
 
     class MakefileRunConfigurationAdapter(s: RunnerAndConfigurationSettings) : ArgumentsAdapter(s) {
+        override fun isExperimental(): Boolean = false
+
         override fun getArguments(): String {
             val config = settings?.configuration as? MakefileRunConfiguration ?: return ""
             return config.arguments

@@ -15,7 +15,6 @@ import java.awt.event.KeyListener
 import javax.swing.JPanel
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
-import kotlin.Array
 import kotlin.math.max
 
 internal class PropertiesFilterGroup(private val definition: FilterDefinition, node: ArgumentNode) {
@@ -77,11 +76,11 @@ internal class PropertiesFilterGroup(private val definition: FilterDefinition, n
         }
     }
 
-    fun items(): List<String> = field.text
+    fun items(): MutableSet<String> = field.text
         .splitToSequence(';')
         .map(String::trim)
         .filter(String::isNotEmpty)
-        .toList()
+        .toMutableSet()
 
     private fun onTextChanged() {
         if (!suspended) {

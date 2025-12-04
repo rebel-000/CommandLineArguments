@@ -12,6 +12,8 @@ internal class CppProjectConfigurationAdapter(s: RunnerAndConfigurationSettings)
 
     private var cachedArgs = ""
 
+    override fun isExperimental(): Boolean = false
+
     override fun getArguments(): String {
         return if (enabled) cachedArgs else ""
     }

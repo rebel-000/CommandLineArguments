@@ -6,13 +6,23 @@ import com.intellij.ui.components.JBRadioButton
 import com.intellij.util.ui.ThreeStateCheckBox
 import java.awt.BorderLayout
 import java.awt.Color
+import javax.swing.AbstractButton
 import javax.swing.JTree
 
 internal class ArgumentTreeCellRenderer : CheckboxTree.CheckboxTreeCellRenderer(true, false) {
     val radioButton = JBRadioButton().apply { isOpaque = false }
 
+    fun getControl(controlType: ArgumentTreeNodeBase.Companion.ControlType): AbstractButton? {
+        return when (controlType) {
+            ArgumentTreeNodeBase.Companion.ControlType.CHECKBOX, ArgumentTreeNodeBase.Companion.ControlType.CHECKBOX_LOCKED -> threeStateCheckBox
+            ArgumentTreeNodeBase.Companion.ControlType.RADIOBUTTON -> radioButton
+            else -> null
+        }
+    }
+
     private fun showRadioButton() {
-        threeStateCheckBox.isVisible = false
+        threeStateCheckBox.isEnabled = true
+        threeStateCheckBox.isVisible = true
         radioButton.isVisible = true
         if (radioButton.parent == null) {
             add(radioButton, BorderLayout.WEST)
@@ -20,9 +30,10 @@ internal class ArgumentTreeCellRenderer : CheckboxTree.CheckboxTreeCellRenderer(
         }
     }
 
-    private fun showCheckbox() {
+    private fun showCheckbox(enabled: Boolean) {
+        threeStateCheckBox.isEnabled = enabled
         threeStateCheckBox.isVisible = true
-        radioButton.isVisible = false
+        radioButton.isVisible = true
         if (radioButton.parent != null) {
             add(threeStateCheckBox, BorderLayout.WEST)
             remove(radioButton)
@@ -44,49 +55,29 @@ internal class ArgumentTreeCellRenderer : CheckboxTree.CheckboxTreeCellRenderer(
         hasFocus: Boolean
     ) {
         val fgColor: Color = textRenderer.foreground
-        when (value) {
-            is InfoNode -> {
-                if (value.isEnabled) {
-                    showCheckbox()
-                } else {
-                    hideControl()
-                }
-                textRenderer.icon = value.icon
-                textRenderer.append(value.toString(), value.style ?: SimpleTextAttributes.REGULAR_ATTRIBUTES)
-                toolTipText = value.tooltip
+        if (value is ArgumentTreeNodeBase) {
+            textRenderer.icon = value.icon
+            when (value.controlType) {
+                ArgumentTreeNodeBase.Companion.ControlType.NONE -> hideControl()
+                ArgumentTreeNodeBase.Companion.ControlType.CHECKBOX -> showCheckbox(true)
+                ArgumentTreeNodeBase.Companion.ControlType.CHECKBOX_LOCKED -> showCheckbox(false)
+                ArgumentTreeNodeBase.Companion.ControlType.RADIOBUTTON -> showRadioButton()
             }
-
-            is ArgumentNode -> {
-                threeStateCheckBox.isVisible = true
-                radioButton.isVisible = true
-                val isRadio = radioButton.parent != null
-                val useRadio = (value.parent as? ArgumentNode)?.isSingle == true
-                if (isRadio != useRadio) {
-                    if (useRadio) {
-                        add(radioButton, BorderLayout.WEST)
-                        remove(threeStateCheckBox)
-                    } else {
-                        add(threeStateCheckBox, BorderLayout.WEST)
-                        remove(radioButton)
-                    }
-                }
+            toolTipText = value.tooltip
+            textRenderer.append("$value   ", value.style ?: SimpleTextAttributes.REGULAR_ATTRIBUTES)
+            if (value is ArgumentNode) {
                 threeStateCheckBox.state = value.state
                 radioButton.isSelected = value.state != ThreeStateCheckBox.State.NOT_SELECTED
-                textRenderer.icon = value.icon
-                textRenderer.append("$value   ")
                 if (value.filters.isNotEmpty()) {
                     textRenderer.append("${value.filtersString} ", SimpleTextAttributes.GRAYED_BOLD_ATTRIBUTES)
                 }
                 textRenderer.append(value.description, SimpleTextAttributes.GRAYED_ITALIC_ATTRIBUTES)
-                toolTipText = null
             }
-
-            else -> {
-                hideControl()
-                textRenderer.icon = null
-                textRenderer.append(value.toString())
-                toolTipText = null
-            }
+        } else {
+            hideControl()
+            textRenderer.icon = null
+            toolTipText = null
+            textRenderer.append(value.toString())
         }
         textRenderer.foreground = fgColor
     }

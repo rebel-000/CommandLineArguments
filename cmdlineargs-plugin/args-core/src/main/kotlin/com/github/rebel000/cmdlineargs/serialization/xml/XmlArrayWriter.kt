@@ -2,7 +2,6 @@ package com.github.rebel000.cmdlineargs.serialization.xml
 
 import com.github.rebel000.cmdlineargs.serialization.ArrayWriter
 import com.github.rebel000.cmdlineargs.serialization.ObjectWriter
-import com.github.rebel000.cmdlineargs.serialization.EntryValue
 import org.jdom.Element
 
 internal class XmlArrayWriter(key: String, parent: Element? = null) : ArrayWriter {
@@ -18,4 +17,6 @@ internal class XmlArrayWriter(key: String, parent: Element? = null) : ArrayWrite
     override fun add(value: String) { xElement.addContent(Element("item").addContent(value)) }
     override fun addArray(capacity: Int): ArrayWriter = XmlArrayWriter("item", xElement)
     override fun addObject(): ObjectWriter = XmlObjectWriter("item", xElement)
+
+    override fun toString(): String = xElement.toString()
 }

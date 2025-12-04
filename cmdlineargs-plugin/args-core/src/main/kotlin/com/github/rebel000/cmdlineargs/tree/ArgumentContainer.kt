@@ -2,44 +2,16 @@ package com.github.rebel000.cmdlineargs.tree
 
 import com.github.rebel000.cmdlineargs.serialization.ObjectReader
 import com.github.rebel000.cmdlineargs.serialization.ObjectWriter
-import com.github.rebel000.cmdlineargs.tree.visitors.TraverseVisitor
-import java.util.Enumeration
-import javax.swing.tree.TreeNode
 
-open class ArgumentContainer(var name: String) : ArgumentTreeNodeBase() {
-    fun innerArguments(): Sequence<ArgumentNode> {
-        return children().asSequence().filterIsInstance<ArgumentNode>()
+open class ArgumentContainer(name: String) : ArgumentTreeNodeBase(name) {
+    override val controlType: Companion.ControlType get() = Companion.ControlType.CHECKBOX
+
+    init {
+        isEnabled = true
     }
 
-    fun traverse(visitor: TraverseVisitor) {
-        if (this is ArgumentNode) {
-            if (visitor.onEnter(this)) {
-                val stack = ArrayDeque<Pair<ArgumentNode, Enumeration<TreeNode>>>()
-                stack.add(Pair(this, children()))
-                while (stack.isNotEmpty()) {
-                    val e = stack.last().second
-                    if (!e.hasMoreElements()) {
-                        val n = stack.removeLast().first
-                        visitor.onExit(n)
-                        continue
-                    }
-                    while (e.hasMoreElements()) {
-                        val node = e.nextElement()
-                        if (node is ArgumentNode && visitor.onEnter(node)) {
-                            if (node.childCount > 0) {
-                                stack.add(Pair(node, node.children()))
-                                break
-                            }
-                            visitor.onExit(node)
-                        }
-                    }
-                }
-            }
-        } else {
-            for (child in innerArguments()) {
-                child.traverse(visitor)
-            }
-        }
+    fun innerArguments(): Sequence<ArgumentNode> {
+        return children().asSequence().filterIsInstance<ArgumentNode>()
     }
 
     internal open fun serialize(obj: ObjectWriter) {
@@ -70,6 +42,6 @@ open class ArgumentContainer(var name: String) : ArgumentTreeNodeBase() {
         return false
     }
 
-    override fun toString(): String = "[${name}]"
+    override fun toString(): String = "[${text}]"
 }
 

@@ -1,30 +1,25 @@
 package com.github.rebel000.cmdlineargs.actions
 
 import com.github.rebel000.cmdlineargs.ArgumentsService
-import com.github.rebel000.cmdlineargs.ui.*
-import com.intellij.openapi.actionSystem.*
+import com.github.rebel000.cmdlineargs.ui.SharedWarningDialog
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.project.DumbAwareToggleAction
 
-@Suppress("DuplicatedCode")
-class ShowSharedAction : ToggleAction() {
+internal class ShowSharedAction : DumbAwareToggleAction() {
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
+
     override fun isSelected(e: AnActionEvent): Boolean {
-        return ArgumentsService.getInstanceIfCreated(e.project)?.isSharedVisible == true
+        val service = ArgumentsService.getInstanceIfCreated(e.project) ?: return false
+        return service.isSharedVisible
     }
 
     override fun setSelected(e: AnActionEvent, state: Boolean) {
-        val argsService = ArgumentsService.getInstanceIfCreated(e.project) ?: return
-        if (argsService.isSharedVisible) {
-            argsService.toggleShared(false)
-        } else if (SharedWarningDialog(argsService).showAndGet()) {
-            argsService.toggleShared(true)
+        val service = ArgumentsService.getInstanceIfCreated(e.project) ?: return
+        if (service.isSharedVisible) {
+            service.toggleShared(false)
+        } else if (SharedWarningDialog().showAndGet()) {
+            service.toggleShared(true)
         }
-    }
-
-    override fun update(e: AnActionEvent) {
-        e.presentation.isEnabled = e.dataContext.getData(PlatformDataKeys.TOOL_WINDOW)?.id == ArgumentsToolWindow.TOOLWINDOW_ID
-        Toggleable.setSelected(e.presentation, isSelected(e))
-    }
-
-    override fun getActionUpdateThread(): ActionUpdateThread {
-        return ActionUpdateThread.BGT
     }
 }

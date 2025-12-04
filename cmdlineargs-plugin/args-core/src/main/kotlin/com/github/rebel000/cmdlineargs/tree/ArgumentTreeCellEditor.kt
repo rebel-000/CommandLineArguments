@@ -1,83 +1,145 @@
 package com.github.rebel000.cmdlineargs.tree
 
+import com.intellij.ui.util.height
+import com.intellij.ui.util.width
+import com.intellij.util.ui.JBUI
 import java.awt.Component
-import java.awt.Dimension
 import java.awt.event.FocusEvent
-import java.awt.event.FocusListener
-import javax.swing.DefaultCellEditor
-import javax.swing.JComponent
+import java.awt.event.MouseEvent
+import java.util.*
 import javax.swing.JTextField
 import javax.swing.JTree
+import javax.swing.event.CellEditorListener
+import javax.swing.event.ChangeEvent
+import javax.swing.tree.TreeCellEditor
 import kotlin.math.max
+import kotlin.math.min
 
-internal class ArgumentTreeCellEditor() : DefaultCellEditor(JTextField()) {
-    private val textField = editorComponent as JTextField
-    var editingNode: ArgumentNode? = null
+internal class ArgumentTreeCellEditor : JTextField(), TreeCellEditor {
+    private var offsetX = 0
+    private var offsetY = 0
+    private var maxWidth = 0
+    private var minWidth = 0
+    private var myHeight = 0
+    var node: ArgumentNode? = null
 
-    private val myEditorComponent = object : JComponent() {
-        var editorHeight: Int? = null
-        var offsetX: Int = 0
-        var offsetY: Int? = null
-        var treeWidth: Int = 0
-
-        override fun doLayout() {
-            textField.setBounds(offsetX, 0, width - offsetX, height)
-        }
-
-        override fun getPreferredSize(): Dimension {
-            return textField.preferredSize.let { Dimension(max(it.width + offsetX + 5, (treeWidth * 0.7).toInt()), it.height) }
-        }
-
-        override fun setBounds(x: Int, y: Int, width: Int, height: Int) {
-            super.setBounds(x, offsetY ?: y, width, editorHeight ?: height)
+    init {
+        addActionListener {
+            stopCellEditing() 
         }
     }
 
-    init {
-        textField.addFocusListener(object : FocusListener {
-            override fun focusGained(e: FocusEvent?) {}
-            override fun focusLost(e: FocusEvent?) {
-                val cause = e?.cause ?: FocusEvent.Cause.UNKNOWN
-                if (cause < FocusEvent.Cause.TRAVERSAL || cause > FocusEvent.Cause.TRAVERSAL_BACKWARD) {
-                    cancelCellEditing()
-                }
+    override fun setBounds(x: Int, y: Int, width: Int, height: Int) {
+        val width = min(max(maxWidth - offsetX - x, minWidth), maxWidth)
+        super.setBounds(x + offsetX, y + offsetY, width, myHeight)
+    }
+
+    override fun processFocusEvent(e: FocusEvent?) {
+        super.processFocusEvent(e)
+        if (e?.id == FocusEvent.FOCUS_LOST) {
+            val cause = e.cause
+            if (cause < FocusEvent.Cause.TRAVERSAL || cause > FocusEvent.Cause.TRAVERSAL_BACKWARD) {
+                cancelCellEditing()
             }
-        })
-        editorComponent = myEditorComponent
-        editorComponent.add(textField)
+        }
+    }
+
+    override fun getCellEditorValue(): Any? {
+        return text
+    }
+
+    override fun isCellEditable(anEvent: EventObject?): Boolean {
+        if (anEvent is MouseEvent) {
+            return anEvent.getClickCount() >= 2
+        }
+        return true
+    }
+
+    override fun shouldSelectCell(anEvent: EventObject?): Boolean {
+        return true
+    }
+
+    override fun stopCellEditing(): Boolean {
+        val listeners: Array<Any?> = listenerList.getListenerList()
+        var i = listeners.size - 2
+        while (i >= 0) {
+            if (listeners[i] === CellEditorListener::class.java) {
+                (listeners[i + 1] as CellEditorListener).editingStopped(ChangeEvent(this))
+            }
+            i -= 2
+        }
+        node = null
+        return true
+    }
+
+    override fun cancelCellEditing() {
+        val listeners: Array<Any?> = listenerList.getListenerList()
+        var i = listeners.size - 2
+        while (i >= 0) {
+            if (listeners[i] === CellEditorListener::class.java) {
+                (listeners[i + 1] as CellEditorListener).editingCanceled(ChangeEvent(this))
+            }
+            i -= 2
+        }
+        node = null
+    }
+
+    override fun addCellEditorListener(l: CellEditorListener?) {
+        listenerList.add(CellEditorListener::class.java, l)
+    }
+
+    override fun removeCellEditorListener(l: CellEditorListener?) {
+        listenerList.remove(CellEditorListener::class.java, l)
     }
 
     override fun getTreeCellEditorComponent(tree: JTree, value: Any, isSelected: Boolean, expanded: Boolean, leaf: Boolean, row: Int): Component {
         if (value is ArgumentNode) {
-            if (myEditorComponent.componentOrientation.isLeftToRight) {
+            if (componentOrientation.isLeftToRight) {
+                offsetX = 0
                 val renderer = tree.cellRenderer as ArgumentTreeCellRenderer
-                var offsetX = renderer.insets.left + renderer.textRenderer.ipad.left + renderer.textRenderer.myBorder.getBorderInsets(renderer.textRenderer).left
-                offsetX -= textField.insets.left + textField.margin.left
-                offsetX += if ((value.parent as? ArgumentNode)?.isSingle == true) {
-                    renderer.radioButton.width
-                } else {
-                    renderer.threeStateCheckBox.width
+                val rendererInsets = renderer.insets
+                val textRendererBorder = renderer.textRenderer.myBorder?.getBorderInsets(renderer.textRenderer) ?: JBUI.emptyInsets()
+                val textRendererInsets = renderer.textRenderer.insets
+                val thisInsets = insets
+                offsetX = (rendererInsets.left
+                        + renderer.textRenderer.ipad.left
+                        + textRendererBorder.left
+                        + textRendererInsets.left
+                        - thisInsets.left
+                        - margin.left)
+
+                offsetY = (rendererInsets.top
+                        + renderer.textRenderer.ipad.top
+//                        + textRendererBorder.top ??
+                        + textRendererInsets.top
+                        - thisInsets.top
+                        - margin.top)
+
+                val control = renderer.getControl(value.controlType)
+                if (control != null) {
+                    offsetX += control.width
                 }
-                if (!value.isLeaf) {
-                    offsetX += textField.getFontMetrics(textField.font).charWidth('[')
-                }
+
                 val icon = value.icon
                 if (icon != null) {
                     offsetX += icon.iconWidth + renderer.textRenderer.iconTextGap
                 }
-                myEditorComponent.offsetX = offsetX
+
+                if (!value.isLeaf) {
+                    offsetX += getFontMetrics(font).charWidth('[')
+                }
             }
-            delegate.setValue(value.name)
-            editingNode = value
+            isEnabled = true
+            node = value
+            text = value.text
+        } else {
+            isEnabled = false
+            node = null
+            text = tree.convertValueToText(value, isSelected, expanded, leaf, row, true)
         }
-        else {
-            myEditorComponent.offsetX = 0
-            delegate.setValue(tree.convertValueToText(value, isSelected, expanded, leaf, row, false))
-        }
-        val rowBounds = tree.getRowBounds(row)
-        myEditorComponent.offsetY = rowBounds.y - 4
-        myEditorComponent.editorHeight = rowBounds.height + 8
-        myEditorComponent.treeWidth = tree.width
-        return editorComponent
+        maxWidth = tree.parent.width - tree.insets.width - 10
+        minWidth = (maxWidth * 0.5).toInt()
+        myHeight = tree.rowHeight + insets.height + margin.height
+        return this
     }
 }

@@ -21,4 +21,6 @@ internal class JsonArrayWriter(val jArray: JsonArray = JsonArray()) : ArrayWrite
         jArray.add(arr.jObject)
         return arr
     }
+
+    override fun toString(): String = jArray.toString()
 }

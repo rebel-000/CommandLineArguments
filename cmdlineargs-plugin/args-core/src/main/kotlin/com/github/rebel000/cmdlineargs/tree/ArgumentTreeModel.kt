@@ -9,15 +9,15 @@ import javax.swing.tree.TreePath
 
 internal class ArgumentTreeModel() : TreeModel {
     private val listenerList = mutableListOf<TreeModelListener>()
-    private val treeRoot = ArgumentTreeNodeBase()
+    private val treeRoot = ArgumentTreeNodeBase("treeRoot")
     private var _sharedRoot: ArgumentContainer? = null
-    val previewRoot = InfoNode(Messages.message("toolwindow.previewNode"))
+    val previewRoot = ArgumentTreeNodeBase(Messages.message("toolwindow.previewNode"))
     val projectRoot = ArgumentContainer(Messages.message("toolwindow.projectNode"))
 
     var sharedRoot: ArgumentContainer?
         get() = _sharedRoot
         set(value) {
-            _sharedRoot?.let { remove(it) }
+            _sharedRoot?.let { rawRemove(it) }
             _sharedRoot = value
             _sharedRoot?.let {
                 val parent = projectRoot.parent as ArgumentTreeNodeBase
@@ -33,7 +33,7 @@ internal class ArgumentTreeModel() : TreeModel {
 
     fun adjustInsertion(anchor: ArgumentTreeNodeBase?, above: Boolean = false): Pair<ArgumentContainer, Int> {
         if (anchor is ArgumentContainer) {
-            if (!anchor.isLeaf) {
+            if (!anchor.isLeaf && !above) {
                 return Pair(anchor, anchor.childCount)
             }
             val parent = anchor.parent
@@ -49,8 +49,8 @@ internal class ArgumentTreeModel() : TreeModel {
         insert(node, parent, index)
     }
 
-    fun tryInsertAfter(node: ArgumentNode, after: ArgumentContainer) {
-        val parent = after.parent as? ArgumentContainer
+    fun tryInsertAfter(node: ArgumentNode, after: ArgumentContainer?) {
+        val parent = after?.parent as? ArgumentContainer
         if (parent != null) {
             insert(node, parent, parent.getIndex(after) + 1)
         } else {
@@ -59,8 +59,8 @@ internal class ArgumentTreeModel() : TreeModel {
     }
 
     @Suppress("unused")
-    fun tryInsertBefore(node: ArgumentNode, before: ArgumentContainer) {
-        val parent = before.parent as? ArgumentContainer
+    fun tryInsertBefore(node: ArgumentNode, before: ArgumentContainer?) {
+        val parent = before?.parent as? ArgumentContainer
         if (parent != null) {
             insert(node, parent, parent.getIndex(before))
         } else {
@@ -79,11 +79,21 @@ internal class ArgumentTreeModel() : TreeModel {
         fireTreeNodesInserted(parent.path, intArrayOf(index), arrayOf(node))
     }
 
-    fun remove(node: ArgumentTreeNodeBase) {
+    fun rawRemove(node: ArgumentTreeNodeBase) {
         val parent = node.parent as? ArgumentTreeNodeBase ?: return
         val index = parent.getIndex(node)
         parent.remove(index)
         fireTreeNodesRemoved(parent.path, intArrayOf(index), arrayOf(node))
+    }
+
+    fun remove(node: ArgumentContainer) {
+        if (!node.readonly) {
+            rawRemove(node)
+            return
+        }
+        for (child in node.innerArguments()) {
+            remove(child)
+        }
     }
 
     fun invalidate() {
@@ -91,6 +101,29 @@ internal class ArgumentTreeModel() : TreeModel {
     }
 
     fun invalidate(node: ArgumentTreeNodeBase, recursive: Boolean) {
+        var recursive = recursive
+        if (node is ArgumentNode) {
+            if (node.isFolder && node.isSingle) {
+                var checked = true
+                for (child in node.innerArguments()) {
+                    if (child.isChecked) {
+                        child.isChecked = checked
+                        checked = false
+                    }
+                }
+                recursive = true
+            }
+            else if (!node.isFolder && node.childCount > 0) {
+                val parent = node.parent as ArgumentContainer
+                var index = parent.getIndex(node) + 1
+                val childNodes = node.innerArguments().toList()
+                for (child in childNodes) {
+                    remove(child)
+                    insert(child, parent, index)
+                    index++
+                }
+            }
+        }
         if (recursive) {
             fireTreeStructureChanged(node.path)
         } else {

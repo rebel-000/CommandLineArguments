@@ -1,5 +1,6 @@
 package com.github.rebel000.cmdlineargs.provider.rider
 
+import com.github.rebel000.cmdlineargs.ArgumentsService
 import com.github.rebel000.cmdlineargs.extensions.PlatformExtension
 import com.github.rebel000.cmdlineargs.FilterDefinition
 import com.github.rebel000.cmdlineargs.helpers.getArgumentsAdapterFilterKey
@@ -14,7 +15,13 @@ class RiderPlatformExtension : PlatformExtension {
     override fun isRider(): Boolean = true
 
     override fun getFilters(project: Project): List<FilterDefinition> {
-        val items = (RunManager.getInstanceIfCreated(project)?.allSettings.orEmpty()).map { it.getArgumentsAdapterFilterKey() }
+        val service = ArgumentsService.getInstance(project)
+        val items = RunManager.getInstanceIfCreated(project)
+            ?.allSettings
+            .orEmpty()
+            .mapNotNull {
+                it.takeIf { service.getAdapter(it)?.isTrusted() == true }?.getArgumentsAdapterFilterKey()
+            }.distinct()
         val configurationsAndPlatformsCollection =
             project.solution.solutionProperties.configurationsAndPlatformsCollection.valueOrEmpty()
         val (platformFilters, configurationFilters) = configurationsAndPlatformsCollection

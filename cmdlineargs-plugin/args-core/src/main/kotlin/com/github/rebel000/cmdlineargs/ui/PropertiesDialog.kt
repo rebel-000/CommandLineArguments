@@ -3,6 +3,7 @@ package com.github.rebel000.cmdlineargs.ui
 import com.github.rebel000.cmdlineargs.ArgumentsService
 import com.github.rebel000.cmdlineargs.resources.Messages
 import com.github.rebel000.cmdlineargs.tree.ArgumentNode
+import com.github.rebel000.cmdlineargs.tree.traverse
 import com.github.rebel000.cmdlineargs.tree.visitors.CollectArgsVisitor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
@@ -20,13 +21,12 @@ import javax.swing.JLabel
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
-@Suppress("DialogTitleCapitalization")
 internal class PropertiesDialog(private val project: Project, private val node: ArgumentNode) : DialogWrapper(true) {
     companion object {
         const val DIALOG_ID = "com.github.rebel000.cmdlineargs.ui.PropertiesDialog"
     }
 
-    private val nameField: JBTextField = JBTextField(node.name)
+    private val nameField: JBTextField = JBTextField(node.text)
     private val descField: JBTextField = JBTextField(node.description)
     private val isFolderField: JBCheckBox = JBCheckBox(Messages.message("properties.isFolder"), node.isFolder)
     private val isParameterField: JBCheckBox = JBCheckBox(Messages.message("properties.isParameter"), node.isParameter)
@@ -76,7 +76,7 @@ internal class PropertiesDialog(private val project: Project, private val node: 
     }
 
     private fun applyTo(node: ArgumentNode) {
-        node.name = nameField.text
+        node.text = nameField.text
         node.description = descField.text
         node.isFolder = isFolderField.isSelected
         node.isParameter = isParameterField.isSelected
@@ -159,7 +159,8 @@ internal class PropertiesDialog(private val project: Project, private val node: 
 
     override fun doOKAction() {
         applyTo(node)
-        node.filters = filterGroups.associate { Pair(it.key, it.items()) }
+        node.filters.clear()
+        filterGroups.associateTo(node.filters) { Pair(it.key, it.items()) }
         saveDimensions()
         super.doOKAction()
     }

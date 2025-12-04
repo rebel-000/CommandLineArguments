@@ -1,86 +1,52 @@
 <idea-plugin>
-    <actions>
-        <group id="cmdlineargs.actions.internal">
-            <action id="cmdlineargs.rename"
-                    class="com.github.rebel000.cmdlineargs.actions.RenameAction"
-                    icon="AllIcons.Actions.Edit" >
-                <keyboard-shortcut first-keystroke="ENTER" keymap="$default" />
-            </action>
-            <action id="cmdlineargs.rename.prev"
-                    class="com.github.rebel000.cmdlineargs.actions.RenamePrevAction"
-                    icon="AllIcons.Actions.MoveUp" >
-                <keyboard-shortcut first-keystroke="UP" keymap="$default" />
-            </action>
-            <action id="cmdlineargs.rename.next"
-                    class="com.github.rebel000.cmdlineargs.actions.RenameNextAction"
-                    icon="AllIcons.Actions.MoveDown" >
-                <keyboard-shortcut first-keystroke="DOWN" keymap="$default" />
-            </action>
+    <extensions defaultExtensionNs="com.intellij">
+        <actionPromoter implementation="com.github.rebel000.cmdlineargs.actions.TreeActionPromoter" />
+    </extensions>
+    <actions resource-bundle="messages.CommandlineArgsActionsBundle">
+        <action id="cmdlineargs.copy-as-plain" class="com.github.rebel000.cmdlineargs.actions.CopyAsPlainTextAction" use-shortcut-of="CopyAsPlainText" />
+        <action id="cmdlineargs.disable" class="com.github.rebel000.cmdlineargs.actions.DisableAction" icon="AllIcons.Actions.Pause"/>
+        <action id="cmdlineargs.edit" class="com.github.rebel000.cmdlineargs.actions.EditAction" icon="AllIcons.Actions.Edit" use-shortcut-of="ShowIntentionActions" />
+        <action id="cmdlineargs.move-down" class="com.github.rebel000.cmdlineargs.actions.MoveDownAction" icon="AllIcons.Actions.MoveDown" use-shortcut-of="Arrangement.Rule.Match.Condition.Move.Down" />
+        <action id="cmdlineargs.move-up" class="com.github.rebel000.cmdlineargs.actions.MoveUpAction" icon="AllIcons.Actions.MoveUp" use-shortcut-of="Arrangement.Rule.Match.Condition.Move.Up" />
+        <action id="cmdlineargs.reload" class="com.github.rebel000.cmdlineargs.actions.ReloadAction" />
+        <action id="cmdlineargs.rename" class="com.github.rebel000.cmdlineargs.actions.RenameAction" use-shortcut-of="RenameElement" />
+        <action id="cmdlineargs.show-shared" class="com.github.rebel000.cmdlineargs.actions.ShowSharedAction" icon="AllIcons.CodeWithMe.CwmShared" />
+
+        <group id="cmdlineargs.popup.new" class="com.github.rebel000.cmdlineargs.actions.NewActionGroup" icon="AllIcons.General.Add" popup="true" searchable="false" use-shortcut-of="NewElement" />
+
+        <group id="cmdlineargs.toolwindow.toolbar" searchable="false">
+            <reference ref="cmdlineargs.popup.new" />
+            <reference ref="cmdlineargs.edit" />
+            <separator />
+            <group id="cmdlineargs.toolwindow.toolbar.copy-as-commandline" class="com.github.rebel000.cmdlineargs.actions.CopyCommandLineActionGroup" icon="AllIcons.Actions.ChangeView" popup="true" searchable="false" />
         </group>
-        <group id="cmdlineargs.actions">
-            <action id="cmdlineargs.add"
-                    class="com.github.rebel000.cmdlineargs.actions.AddAction"
-                    icon="AllIcons.General.Add">
-                <keyboard-shortcut first-keystroke="INSERT" keymap="$default" />
-                <keyboard-shortcut first-keystroke="alt INSERT" keymap="$default" />
-            </action>
-            <action id="cmdlineargs.remove"
-                    class="com.github.rebel000.cmdlineargs.actions.RemoveAction"
-                    icon="AllIcons.General.Remove">
-                <keyboard-shortcut first-keystroke="DELETE" keymap="$default" />
-            </action>
-            <action id="cmdlineargs.edit"
-                    class="com.github.rebel000.cmdlineargs.actions.EditAction"
-                    icon="AllIcons.Actions.Edit">
-                <keyboard-shortcut first-keystroke="alt ENTER" keymap="$default" />
-            </action>
+
+        <group id="cmdlineargs.toolwindow.toolbar.ex" searchable="false">
+            <group id="cmdlineargs.toolwindow.toolbar.ex.view" class="com.github.rebel000.cmdlineargs.actions.ViewActionGroup" searchable="false" />
             <separator />
-            <action id="cmdlineargs.moveUp"
-                    class="com.github.rebel000.cmdlineargs.actions.MoveUpAction"
-                    icon="AllIcons.Actions.MoveUp">
-                <keyboard-shortcut first-keystroke="alt UP" keymap="$default" />
-            </action>
-            <action id="cmdlineargs.moveDown"
-                    class="com.github.rebel000.cmdlineargs.actions.MoveDownAction"
-                    icon="AllIcons.Actions.MoveDown">
-                <keyboard-shortcut first-keystroke="alt DOWN" keymap="$default" />
-            </action>
+            <reference ref="cmdlineargs.disable" />
+            <reference ref="cmdlineargs.show-shared" />
             <separator />
-            <group id="cmdlineargs.copy-args"
-                    class="com.github.rebel000.cmdlineargs.actions.CopyArgsAction"
-                    icon="AllIcons.Actions.ChangeView">
-            </group>
+            <reference ref="cmdlineargs.reload" />
+        </group>
+
+        <group id="cmdlineargs.toolwindow.popup" searchable="false">
+            <group id="cmdlineargs.toolwindow.popup.trust" class="com.github.rebel000.cmdlineargs.actions.TrustActionGroup" searchable="false" />
+            <reference ref="cmdlineargs.popup.new" />
             <separator />
-            <action id="cmdlineargs.cut"
-                    class="com.github.rebel000.cmdlineargs.actions.CutAction"
-                    icon="AllIcons.Actions.MenuCut"
-                    use-shortcut-of="$Cut">
-            </action>
-            <action id="cmdlineargs.copy"
-                    class="com.github.rebel000.cmdlineargs.actions.CopyAction"
-                    icon="AllIcons.Actions.Copy"
-                    use-shortcut-of="$Copy">
-            </action>
-            <action id="cmdlineargs.paste"
-                    class="com.github.rebel000.cmdlineargs.actions.PasteAction"
-                    icon="AllIcons.Actions.MenuPaste"
-                    use-shortcut-of="$Paste">
-            </action>
+            <reference ref="$Cut" />
+            <reference ref="$Copy" />
+            <reference ref="cmdlineargs.copy-as-plain" />
+            <group id="cmdlineargs.toolwindow.popup.copy-as-arguments" class="com.github.rebel000.cmdlineargs.actions.CopyAsArgumentsActionGroup" popup="true" searchable="false" />
+            <reference ref="$Paste" />
             <separator />
-            <action id="cmdlineargs.reload"
-                    class="com.github.rebel000.cmdlineargs.actions.ReloadAction"
-                    icon="AllIcons.Actions.Refresh">
-                <keyboard-shortcut first-keystroke="ctrl R" keymap="$default" />
-            </action>
+            <reference ref="$Delete" />
             <separator />
-            <action id="cmdlineargs.showShared"
-                    class="com.github.rebel000.cmdlineargs.actions.ShowSharedAction"
-                    icon="AllIcons.CodeWithMe.CwmShared">
-            </action>
-            <action id="cmdlineargs.disable"
-                    class="com.github.rebel000.cmdlineargs.actions.DisableAction"
-                    icon="AllIcons.Actions.Pause">
-            </action>
+            <group id="cmdlineargs.toolwindow.popup.quick-params" class="com.github.rebel000.cmdlineargs.actions.QuickParametersActionGroup" searchable="false" />
+            <group id="cmdlineargs.toolwindow.popup.filters" class="com.github.rebel000.cmdlineargs.actions.FiltersActionGroup" searchable="false" />
+            <separator />
+            <reference ref="cmdlineargs.rename" />
+            <reference ref="cmdlineargs.edit" />
         </group>
     </actions>
 </idea-plugin>

@@ -1,15 +1,15 @@
 package com.github.rebel000.cmdlineargs.ui
 
-import com.github.rebel000.cmdlineargs.ArgumentsService
 import com.github.rebel000.cmdlineargs.resources.Messages
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.util.ui.FormBuilder
 import java.awt.Component
-import javax.swing.*
+import javax.swing.JComponent
+import javax.swing.JLabel
 
-class SharedWarningDialog(private val argsService: ArgumentsService) : DialogWrapper(true) {
+class SharedWarningDialog : DialogWrapper(true) {
     private val warningCheck = JBCheckBox(Messages.message("toolwindow.showShared.check"))
 
     init {

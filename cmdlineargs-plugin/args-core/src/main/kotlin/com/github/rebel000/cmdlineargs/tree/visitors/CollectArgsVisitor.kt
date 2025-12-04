@@ -1,8 +1,9 @@
 package com.github.rebel000.cmdlineargs.tree.visitors
 
 import com.github.rebel000.cmdlineargs.tree.ArgumentNode
+import com.github.rebel000.cmdlineargs.tree.TraverseVisitor
 
-open class CollectArgsVisitor(private val predicate: (ArgumentNode) -> Boolean) : TraverseVisitor {
+open class CollectArgsVisitor(private val predicate: (ArgumentNode) -> Boolean) : TraverseVisitor<ArgumentNode> {
     private val data = StringBuilder()
     private var prefix: String = ""
     private var separator: String = " "
@@ -12,7 +13,7 @@ open class CollectArgsVisitor(private val predicate: (ArgumentNode) -> Boolean) 
             if (node.isFolder) {
                 if (node.isParameter) {
                     data.append(prefix)
-                    data.append(node.name)
+                    data.append(node.text)
                     prefix = ""
                 }
                 if (node.join) {
@@ -29,7 +30,7 @@ open class CollectArgsVisitor(private val predicate: (ArgumentNode) -> Boolean) 
                 return true
             } else {
                 data.append(prefix)
-                data.append(node.name)
+                data.append(node.text)
                 prefix = separator
             }
         }
