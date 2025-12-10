@@ -38,7 +38,7 @@ internal class ArgumentTreeCellEditor : JTextField(), TreeCellEditor {
         super.processFocusEvent(e)
         if (e?.id == FocusEvent.FOCUS_LOST) {
             val cause = e.cause
-            if (cause < FocusEvent.Cause.TRAVERSAL || cause > FocusEvent.Cause.TRAVERSAL_BACKWARD) {
+            if (cause < FocusEvent.Cause.TRAVERSAL || cause > FocusEvent.Cause.TRAVERSAL_BACKWARD && cause != FocusEvent.Cause.ACTIVATION) {
                 cancelCellEditing()
             }
         }
