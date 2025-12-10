@@ -385,18 +385,18 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     private fun locateStateFile(): String? {
+        val basePath = project.basePath!!
         if (PlatformExtension.EP_NAME.extensions.any { it.isRider() }) {
-            val riderConfig = Path(project.basePath!!).resolve(project.name + ".cmdlineargs.json")
-            val oldRiderConfig = Path(project.basePath!!).resolve(project.name + ".ddargs.json")
-            if (oldRiderConfig.exists()) {
-                oldRiderConfig.copy(riderConfig)
-                oldRiderConfig.move(oldRiderConfig.parent.resolve(oldRiderConfig.name + ".json.bak"))
-            }
+            val riderConfig = Path(basePath).resolve(project.name + ".cmdlineargs.json")
+            Path(basePath).resolve(project.name + ".ddargs.json").takeIf { it.exists() }
+                ?.let {
+                    it.copy(riderConfig)
+                    it.move(it.parent.resolve("${it.name}.json.bak"))
+                }
             return riderConfig.toString()
         }
-        val projectDir = Path(project.basePath!!)
         val workspaceDir = project.workspaceFile?.parent ?: project.projectFile?.parent
-        val rootConfig = projectDir.resolve(".cmdlineargs.json")
+        val rootConfig = Path(basePath).resolve(".cmdlineargs.json")
         if (rootConfig.exists() || workspaceDir == null) {
             return rootConfig.toString()
         }
