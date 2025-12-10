@@ -6,10 +6,10 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 
 internal class JsonObjectWriter(val jObject: JsonObject = JsonObject()) : ObjectWriter {
-    override fun add(key: String, value: Boolean) = jObject.addProperty(key, value)
-    override fun add(key: String, value: Int) = jObject.addProperty(key, value)
-    override fun add(key: String, value: Float) = jObject.addProperty(key, value)
-    override fun add(key: String, value: String) = jObject.addProperty(key, value)
+    override fun set(key: String, value: Boolean) = jObject.addProperty(key, value)
+    override fun set(key: String, value: Int) = jObject.addProperty(key, value)
+    override fun set(key: String, value: Float) = jObject.addProperty(key, value)
+    override fun set(key: String, value: String) = jObject.addProperty(key, value)
 
     override fun addArray(key: String, capacity: Int): ArrayWriter {
         val arr = JsonArrayWriter(JsonArray(capacity))

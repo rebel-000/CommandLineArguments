@@ -96,35 +96,34 @@ internal class ArgumentTreeCellEditor : JTextField(), TreeCellEditor {
         if (value is ArgumentNode) {
             if (componentOrientation.isLeftToRight) {
                 offsetX = 0
-                val renderer = tree.cellRenderer as ArgumentTreeCellRenderer
-                val rendererInsets = renderer.insets
-                val textRendererBorder = renderer.textRenderer.myBorder?.getBorderInsets(renderer.textRenderer) ?: JBUI.emptyInsets()
-                val textRendererInsets = renderer.textRenderer.insets
-                val thisInsets = insets
-                offsetX = (rendererInsets.left
-                        + renderer.textRenderer.ipad.left
-                        + textRendererBorder.left
-                        + textRendererInsets.left
-                        - thisInsets.left
-                        - margin.left)
-
-                offsetY = (rendererInsets.top
-                        + renderer.textRenderer.ipad.top
-//                        + textRendererBorder.top ??
-                        + textRendererInsets.top
-                        - thisInsets.top
-                        - margin.top)
-
-                val control = renderer.getControl(value.controlType)
-                if (control != null) {
-                    offsetX += control.width
+                offsetY = 0
+                with(tree.cellRenderer as ArgumentTreeCellRenderer) {
+                    insets.let {
+                        offsetX += it.left
+                        offsetY += it.top
+                    }
+                    textRenderer.insets.let {
+                        offsetX += it.left
+                        offsetY += it.top
+                    }
+                    textRenderer.myBorder?.getBorderInsets(textRenderer)?.let {
+                        offsetX += it.left
+                    }
+                    getControl(value.controlType)?.let {
+                        offsetX += it.width
+                    }
+                    value.icon?.let {
+                        offsetX += it.iconWidth + textRenderer.iconTextGap
+                    }
                 }
-
-                val icon = value.icon
-                if (icon != null) {
-                    offsetX += icon.iconWidth + renderer.textRenderer.iconTextGap
+                insets.let {
+                    offsetX -= it.left
+                    offsetY -= it.top
                 }
-
+                margin.let {
+                    offsetX -= it.left
+                    offsetY -= it.top
+                }
                 if (!value.isLeaf) {
                     offsetX += getFontMetrics(font).charWidth('[')
                 }

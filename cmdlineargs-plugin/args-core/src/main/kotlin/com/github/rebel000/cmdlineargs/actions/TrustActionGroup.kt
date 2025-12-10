@@ -21,8 +21,8 @@ internal class TrustActionGroup : DefaultActionGroup() {
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabled = false
         e.withArgumentDataContext {
-            e.presentation.isVisible = it.treeSelectedExperimental > 0
-            e.presentation.isEnabled = e.presentation.isVisible && it.treeSelectedCount == it.treeSelectedConfigurations
+            e.presentation.isVisible = treeSelectedExperimental > 0
+            e.presentation.isEnabled = e.presentation.isVisible && treeSelectedCount == treeSelectedConfigurations
         }
     }
 

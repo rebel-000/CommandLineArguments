@@ -15,6 +15,6 @@ class ArgumentsProjectStorage : SimplePersistentStateComponent<ArgumentsProjectS
         var enabledConfigs by stringSet()
         var trustedConfigs by stringSet()
         var trustedConfigTypes by stringSet()
-        var args by property(Element("args")) { it.isEmpty }
+        var projectArguments by property(Element("project-arguments")) { it.isEmpty }
     }
 }

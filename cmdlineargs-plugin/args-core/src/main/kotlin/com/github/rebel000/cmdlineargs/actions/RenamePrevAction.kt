@@ -10,35 +10,35 @@ import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.TreePath
 
 internal class RenamePrevAction : DumbAwareAction() {
-    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext { context ->
-        val node = (context.tree.editingPath?.lastPathComponent) as ArgumentNode?
+    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext {
+        val node = (tree.editingPath?.lastPathComponent) as ArgumentNode?
         val parent = node?.parent
         if (parent !is ArgumentTreeNodeBase) {
-            context.tree.stopEditing()
-            return@withArgumentDataContext
+            tree.stopEditing()
+            return
         }
         val sibling = node.previousSibling
         if (sibling is ArgumentNode){
             if (sibling.isFolder && sibling.isExpanded && sibling.childCount > 0) {
                 val lastChild = sibling.lastChild
                 if (lastChild is ArgumentNode) {
-                    rename(context.tree, lastChild)
-                    return@withArgumentDataContext
+                    rename(tree, lastChild)
+                    return
                 }
             }
         }
         val index = parent.getIndex(node) - 1
         if (index < 0) {
-            rename(context.tree, parent)
-            return@withArgumentDataContext
+            rename(tree, parent)
+            return
         }
-        rename(context.tree, sibling)
+        rename(tree, sibling)
     }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
-        e.presentation.isEnabled = e.withArgumentDataContext(false) { it.treeIsEditing }
+        e.presentation.isEnabled = e.withArgumentDataContext(false) { treeIsEditing }
     }
 
     private fun rename(tree: ArgumentTree, node: DefaultMutableTreeNode) {

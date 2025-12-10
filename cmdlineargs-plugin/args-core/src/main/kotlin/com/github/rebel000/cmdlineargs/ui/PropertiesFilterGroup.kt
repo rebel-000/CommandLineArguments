@@ -60,12 +60,11 @@ internal class PropertiesFilterGroup(private val definition: FilterDefinition, n
             override fun keyReleased(e: KeyEvent?) = Unit
         })
         checkboxes = Array(definition.values.size) {
-            val flag = definition.values[it]
-            val checkbox = JBCheckBox(flag)
-            checkbox.isSelected = items.contains(flag)
-            checkbox.addActionListener { onFlagsChanged(checkbox) }
-            columnWidth = max(columnWidth, checkbox.preferredSize.width)
-            return@Array checkbox
+            JBCheckBox(definition.values[it]).apply {
+                isSelected = items.contains(text)
+                addActionListener { onFlagsChanged(this) }
+                columnWidth = max(columnWidth, preferredSize.width)
+            }
         }
         checkboxGroup = JPanel(WrapLayout(FlowLayout.LEADING, 0, 0))
         for (it in checkboxes) {

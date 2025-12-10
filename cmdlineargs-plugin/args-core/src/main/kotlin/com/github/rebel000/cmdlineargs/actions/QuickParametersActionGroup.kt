@@ -18,7 +18,7 @@ internal class QuickParametersActionGroup : DefaultActionGroup() {
 
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabledAndVisible = e.withArgumentDataContext(false) {
-            it.treeSelectedArguments == 1 && it.treeSelectedCount == 1
+            treeSelectedArguments == 1 && treeSelectedCount == 1
         }
     }
 
@@ -29,16 +29,16 @@ internal class QuickParametersActionGroup : DefaultActionGroup() {
 
         override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
 
-        override fun isSelected(e: AnActionEvent): Boolean = e.withArgumentDataContext(false) { context ->
-            (context.tree.selectedNode() as? ArgumentNode)?.isFolder ?: false
+        override fun isSelected(e: AnActionEvent): Boolean = e.withArgumentDataContext(false) {
+            (tree.selectedNode() as? ArgumentNode)?.isFolder ?: false
         }
 
-        override fun setSelected(e: AnActionEvent, enabled: Boolean) = e.withArgumentDataContext { context ->
-            (context.tree.selectedNode() as? ArgumentNode)?.let {
+        override fun setSelected(e: AnActionEvent, enabled: Boolean) = e.withArgumentDataContext {
+            (tree.selectedNode() as? ArgumentNode)?.let {
                 it.isFolder = enabled
                 it.isParameter = it.isParameter && enabled
                 it.isSingle = it.isSingle && enabled
-                context.model.invalidate(it, false)
+                model.invalidate(it, false)
             }
         }
     }
@@ -50,17 +50,17 @@ internal class QuickParametersActionGroup : DefaultActionGroup() {
 
         override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
 
-        override fun isSelected(e: AnActionEvent): Boolean = e.withArgumentDataContext(false) { context ->
-            (context.tree.selectedNode() as? ArgumentNode)?.let {
+        override fun isSelected(e: AnActionEvent): Boolean = e.withArgumentDataContext(false) {
+            (tree.selectedNode() as? ArgumentNode)?.let {
                 it.isFolder && it.isParameter
             } ?: false
         }
 
-        override fun setSelected(e: AnActionEvent, enabled: Boolean) = e.withArgumentDataContext { context ->
-            (context.tree.selectedNode() as? ArgumentNode)?.let {
+        override fun setSelected(e: AnActionEvent, enabled: Boolean) = e.withArgumentDataContext {
+            (tree.selectedNode() as? ArgumentNode)?.let {
                 it.isFolder = it.isFolder || enabled
                 it.isParameter = enabled
-                context.model.invalidate(it, false)
+                model.invalidate(it, false)
             }
         }
     }
@@ -72,17 +72,17 @@ internal class QuickParametersActionGroup : DefaultActionGroup() {
 
         override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
 
-        override fun isSelected(e: AnActionEvent): Boolean = e.withArgumentDataContext(false) { context ->
-            (context.tree.selectedNode() as? ArgumentNode)?.let {
+        override fun isSelected(e: AnActionEvent): Boolean = e.withArgumentDataContext(false) {
+            (tree.selectedNode() as? ArgumentNode)?.let {
                 it.isFolder && it.isSingle
             } ?: false
         }
 
-        override fun setSelected(e: AnActionEvent, enabled: Boolean) = e.withArgumentDataContext { context ->
-            (context.tree.selectedNode() as? ArgumentNode)?.let {
+        override fun setSelected(e: AnActionEvent, enabled: Boolean) = e.withArgumentDataContext {
+            (tree.selectedNode() as? ArgumentNode)?.let {
                 it.isFolder = it.isFolder || enabled
                 it.isSingle = enabled
-                context.model.invalidate(it, false)
+                model.invalidate(it, false)
             }
         }
     }

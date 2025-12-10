@@ -7,11 +7,11 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAwareAction
 
 internal class EditAction : DumbAwareAction(), TreeAction {
-    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext { context ->
-        context.tree.stopEditing()
-        (context.tree.selectedNode() as? ArgumentNode)?.let { node ->
+    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext {
+        tree.stopEditing()
+        (tree.selectedNode() as? ArgumentNode)?.let { node ->
             if (PropertiesDialog(e.project!!, node).showAndGet()) {
-                context.model.invalidate(node, false)
+                model.invalidate(node, false)
             }
         }
     }
@@ -19,8 +19,8 @@ internal class EditAction : DumbAwareAction(), TreeAction {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
-        e.presentation.isEnabled = e.withArgumentDataContext(false) {
-            it.treeSelectedArguments == 1 && it.treeSelectedCount == 1
-        } && e.project != null
+        e.presentation.isEnabled = e.project != null && e.withArgumentDataContext(false) {
+            treeSelectedArguments == 1 && treeSelectedCount == 1
+        }
     }
 }

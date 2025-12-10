@@ -68,11 +68,14 @@ internal class ArgumentDataContext() :
             return
         }
         for (path in tree.selectionPaths.orEmpty()) {
-            val key = (path.lastPathComponent as? ConfigurationNode)?.key ?: continue
-            val adapter = service.findAdapter(key) ?: continue
-            treeIsTrustedByName = treeIsTrustedByName || adapter.isTrustedByName() == true
-            treeIsTrustedByType = treeIsTrustedByType || adapter.isTrustedByType() == true
-            if (treeIsTrustedByName && treeIsTrustedByType) break
+            (path.lastPathComponent as? ConfigurationNode)
+                ?.key
+                ?.let { service.findAdapter(it) }
+                ?.let { adapter ->
+                    treeIsTrustedByName = treeIsTrustedByName || adapter.isTrustedByName() == true
+                    treeIsTrustedByType = treeIsTrustedByType || adapter.isTrustedByType() == true
+                    if (treeIsTrustedByName && treeIsTrustedByType) break
+                }
         }
     }
     override fun treeNodesInserted(e: TreeModelEvent?)  = Unit
@@ -88,20 +91,27 @@ internal class ArgumentDataContext() :
         treeSelectedExperimental = 0
         treeSelectedCount = tree.selectionCount
         for (path in tree.selectionPaths.orEmpty()) {
-            val node = path.lastPathComponent as? ArgumentTreeNodeBase ?: continue
-            if (node is ArgumentContainer) {
-                if (node is ArgumentNode) {
+            when (val node = path.lastPathComponent) {
+                is ArgumentNode -> {
                     treeSelectedArguments++
+                    treeSelectedContainers++
                 }
-                treeSelectedContainers++
-            } else if (node is ConfigurationNode) {
-                treeSelectedConfigurations++
-                if (node.isExperimental) {
-                    treeSelectedExperimental++
-                    if (!treeIsTrustedByName || !treeIsTrustedByType) {
-                        node.key?.let { service.findAdapter(it) }?.let {
-                            treeIsTrustedByName = treeIsTrustedByName || (it.isTrustedByName() == true)
-                            treeIsTrustedByType = treeIsTrustedByType || (it.isTrustedByType() == true)
+
+                is ArgumentContainer -> {
+                    treeSelectedContainers++
+                }
+
+                is ConfigurationNode -> {
+                    treeSelectedConfigurations++
+                    if (node.isExperimental) {
+                        treeSelectedExperimental++
+                        if (!treeIsTrustedByName || !treeIsTrustedByType) {
+                            node.key
+                                ?.let { service.findAdapter(it) }
+                                ?.let {
+                                    treeIsTrustedByName = treeIsTrustedByName || (it.isTrustedByName() == true)
+                                    treeIsTrustedByType = treeIsTrustedByType || (it.isTrustedByType() == true)
+                                }
                         }
                     }
                 }

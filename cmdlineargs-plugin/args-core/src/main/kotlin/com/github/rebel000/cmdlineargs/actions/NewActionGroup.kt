@@ -16,45 +16,45 @@ internal class NewActionGroup : DefaultActionGroup(), TreeAction {
             AddAction(
                 text = ActionMessages.message("action.cmdlineargs.add.text"),
                 icon = AllIcons.Diff.GutterCheckBoxSelected,
-                isFolder = false,
-                isParameter = false,
-                isSingle = false
+                folder = false,
+                parameter = false,
+                single = false
             )
         )
         add(
             AddAction(
                 text = ActionMessages.message("action.cmdlineargs.add-folder.text"),
                 icon = AllIcons.Nodes.Folder,
-                isFolder = true,
-                isParameter = false,
-                isSingle = false
+                folder = true,
+                parameter = false,
+                single = false
             )
         )
         add(
             AddAction(
                 text = ActionMessages.message("action.cmdlineargs.add-folder-parameter.text"),
                 icon = AllIcons.Actions.GroupByModuleGroup,
-                isFolder = true,
-                isParameter = true,
-                isSingle = false
+                folder = true,
+                parameter = true,
+                single = false
             )
         )
         add(
             AddAction(
                 text = ActionMessages.message("action.cmdlineargs.add-choice.text"),
                 icon = AllIcons.Nodes.Module,
-                isFolder = true,
-                isParameter = false,
-                isSingle = true
+                folder = true,
+                parameter = false,
+                single = true
             )
         )
         add(
             AddAction(
                 text = ActionMessages.message("action.cmdlineargs.add-choice-parameter.text"),
                 icon = AllIcons.Actions.GroupByModule,
-                isFolder = true,
-                isParameter = true,
-                isSingle = true
+                folder = true,
+                parameter = true,
+                single = true
             )
         )
     }
@@ -63,7 +63,7 @@ internal class NewActionGroup : DefaultActionGroup(), TreeAction {
 
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabled = e.withArgumentDataContext(false) {
-            it.treeSelectedContainers > 0 && it.treeSelectedCount == it.treeSelectedContainers && !it.treeIsEditing
+            treeSelectedContainers > 0 && treeSelectedCount == treeSelectedContainers
         }
         e.presentation.isVisible = e.presentation.isEnabled || !e.isFromContextMenu
     }
@@ -71,20 +71,24 @@ internal class NewActionGroup : DefaultActionGroup(), TreeAction {
     class AddAction(
         text: String?,
         icon: Icon?,
-        val isFolder: Boolean,
-        val isParameter: Boolean,
-        val isSingle: Boolean
+        val folder: Boolean,
+        val parameter: Boolean,
+        val single: Boolean
     ) : DumbAwareAction(text, null, icon), TreeAction {
-        override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext { context ->
-            val node = ArgumentNode("")
-            node.isFolder = isFolder
-            node.isParameter = isParameter
-            node.isSingle = isSingle
-            context.model.add(node, context.tree.selectedNode())
-            context.tree.stopEditing()
-            val path = TreePath(node.path)
-            context.tree.selectionPaths = arrayOf(path)
-            context.tree.startEditingAtPath(path)
+        override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext {
+            tree.stopEditing()
+            ArgumentNode("")
+                .apply {
+                    isFolder = folder
+                    isParameter = parameter
+                    isSingle = single
+                    model.add(this, tree.selectedNode())
+                }
+                .let { TreePath(it.path) }
+                .let {
+                    tree.selectionPaths = arrayOf(it)
+                    tree.startEditingAtPath(it)
+                }
         }
     }
 }

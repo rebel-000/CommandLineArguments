@@ -9,20 +9,20 @@ import com.intellij.openapi.project.DumbAwareAction
 import javax.swing.tree.TreePath
 
 internal class MoveUpAction : DumbAwareAction(), TreeAction {
-    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext { context ->
-        val selectedNodes = context.tree.selectedNodesNoRecursion<ArgumentNode>()
+    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext {
+        val selectedNodes = tree.selectedNodesNoRecursion<ArgumentNode>()
         if (selectedNodes.isEmpty()) {
-            return@withArgumentDataContext
+            return
         }
         var anchorNode: ArgumentContainer = selectedNodes.first()
-        var parent: ArgumentContainer = anchorNode.parent as? ArgumentContainer ?: return@withArgumentDataContext
+        var parent: ArgumentContainer = anchorNode.parent as? ArgumentContainer ?: return
         var index = parent.getIndex(anchorNode) - 1
         if (index == -2) {
-            return@withArgumentDataContext
+            return
         }
         if (index == -1) {
             anchorNode = parent
-            parent = parent.parent as? ArgumentContainer ?: return@withArgumentDataContext
+            parent = parent.parent as? ArgumentContainer ?: return
         }
         val readonly = anchorNode !is ArgumentNode
         if (index != -1 || readonly) {
@@ -31,7 +31,7 @@ internal class MoveUpAction : DumbAwareAction(), TreeAction {
                 parent = neighbor
                 index = neighbor.childCount
             } else if (readonly) {
-                return@withArgumentDataContext
+                return
             }
         }
         else {
@@ -39,27 +39,27 @@ internal class MoveUpAction : DumbAwareAction(), TreeAction {
         }
         val newSelectionPaths = ArrayList<TreePath>(selectedNodes.count())
         for (node in selectedNodes) {
-            val wasExpanded = context.tree.isExpanded(TreePath(node.path))
-            context.model.remove(node)
-            context.model.insert(node, parent, index)
+            val wasExpanded = tree.isExpanded(TreePath(node.path))
+            model.remove(node)
+            model.insert(node, parent, index)
             if (parent is ArgumentNode && parent.isSingle) {
-                context.tree.setNodeState(node, false)
+                tree.setNodeState(node, false)
             }
             val path = TreePath(node.path)
             newSelectionPaths.add(path)
             if (wasExpanded) {
-                context.tree.expandPath(path)
+                tree.expandPath(path)
             }
             index++
         }
-        context.tree.selectionPaths = newSelectionPaths.toArray(arrayOf())
+        tree.selectionPaths = newSelectionPaths.toArray(arrayOf())
     }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabledAndVisible = e.withArgumentDataContext(false) {
-            it.treeSelectedArguments > 0 && it.treeSelectedCount == it.treeSelectedArguments
+            treeSelectedArguments > 0 && treeSelectedCount == treeSelectedArguments
         }
     }
 }

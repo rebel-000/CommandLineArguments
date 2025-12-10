@@ -10,18 +10,18 @@ import javax.swing.tree.TreePath
 import kotlin.math.min
 
 internal class MoveDownAction : DumbAwareAction(), TreeAction {
-    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext { context ->
-        val selectedNodes = context.tree.selectedNodesNoRecursion<ArgumentNode>()
+    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext {
+        val selectedNodes = tree.selectedNodesNoRecursion<ArgumentNode>()
         var anchor: ArgumentTreeNodeBase = selectedNodes[selectedNodes.count() - 1]
-        var parent = anchor.parent as? ArgumentContainer ?: return@withArgumentDataContext
+        var parent = anchor.parent as? ArgumentContainer ?: return
         var index = parent.getIndex(anchor) + 1
         if (index == 0) {
-            return@withArgumentDataContext
+            return
         }
         val last = (index == parent.childCount)
         if (last) {
             anchor = parent
-            parent = parent.parent as? ArgumentContainer ?: return@withArgumentDataContext
+            parent = parent.parent as? ArgumentContainer ?: return
         }
         val readonly = anchor !is ArgumentNode
         if (!last || readonly) {
@@ -30,7 +30,7 @@ internal class MoveDownAction : DumbAwareAction(), TreeAction {
                 parent = sibling
                 index = -1
             } else if (readonly) {
-                return@withArgumentDataContext
+                return
             }
         }
         else {
@@ -40,30 +40,30 @@ internal class MoveDownAction : DumbAwareAction(), TreeAction {
         index = min(index, parent.childCount)
         val newSelectionPaths = ArrayList<TreePath>(selectedNodes.count())
         for (node in selectedNodes) {
-            val wasExpanded = context.tree.isExpanded(TreePath(node.path))
+            val wasExpanded = tree.isExpanded(TreePath(node.path))
             if (node.parent === parent && parent.getIndex(node) < index) {
                 index--
             }
-            context.model.remove(node)
-            context.model.insert(node, parent, index)
+            model.remove(node)
+            model.insert(node, parent, index)
             if (parent is ArgumentNode && parent.isSingle) {
-                context.tree.setNodeState(node, false)
+                tree.setNodeState(node, false)
             }
             val path = TreePath(node.path)
             newSelectionPaths.add(path)
             if (wasExpanded) {
-                context.tree.expandPath(path)
+                tree.expandPath(path)
             }
             index++
         }
-        context.tree.selectionPaths = newSelectionPaths.toArray(arrayOf())
+        tree.selectionPaths = newSelectionPaths.toArray(arrayOf())
     }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabledAndVisible = e.withArgumentDataContext(false) {
-            it.treeSelectedArguments > 0 && it.treeSelectedCount == it.treeSelectedArguments
+            treeSelectedArguments > 0 && treeSelectedCount == treeSelectedArguments
         }
     }
 }

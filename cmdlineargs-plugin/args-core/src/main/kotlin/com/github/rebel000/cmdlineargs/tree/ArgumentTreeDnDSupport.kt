@@ -3,6 +3,7 @@ package com.github.rebel000.cmdlineargs.tree
 import com.intellij.ide.dnd.*
 import com.intellij.openapi.Disposable
 import com.intellij.ui.awt.RelativeRectangle
+import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import java.awt.Component
 import java.awt.Point
 import javax.swing.tree.TreePath
@@ -24,20 +25,18 @@ internal class ArgumentTreeDnDSupport(val tree: ArgumentTree) : DnDDropHandler, 
     }
 
     private fun createDragStartBean(info: DnDActionInfo): DnDDragStartBean? {
-        if (!tree.isEnabled) {
-            return null
+        if (tree.isEnabled) {
+            tree.selectionRows
+                ?.filter { tree.getPathForRow(it)?.lastPathComponent is ArgumentNode }
+                ?.sorted()
+                ?.ifNotEmpty {
+                    val srcIndex = tree.getClosestRowForLocation(info.point.x, info.point.y)
+                    if (srcIndex != -1) {
+                        return DnDDragStartBean(DragInfo(tree, srcIndex, this))
+                    }
+                }
         }
-        val selectedRows = tree.selectionRows
-            ?.filter { tree.getPathForRow(it)?.lastPathComponent is ArgumentNode }
-            ?.sorted()
-        if (selectedRows == null || selectedRows.isEmpty()) {
-            return null
-        }
-        val srcIndex = tree.getClosestRowForLocation(info.point.x, info.point.y)
-        if (srcIndex == -1 || !tree.isEnabled) {
-            return null
-        }
-        return DnDDragStartBean(DragInfo(tree, srcIndex, selectedRows))
+        return null
     }
 
     private fun dropPosition(dragInfo: DragInfo, dstIndex: Int, point: Point): DropPosition {

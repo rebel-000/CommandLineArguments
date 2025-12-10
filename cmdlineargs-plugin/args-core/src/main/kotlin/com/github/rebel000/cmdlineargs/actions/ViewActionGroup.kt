@@ -1,6 +1,5 @@
 package com.github.rebel000.cmdlineargs.actions
 
-import com.github.rebel000.cmdlineargs.ArgumentsService
 import com.github.rebel000.cmdlineargs.resources.ActionMessages
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -19,14 +18,8 @@ internal class ViewActionGroup : DefaultActionGroup() {
         }
 
         override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
-
-        override fun isSelected(e: AnActionEvent): Boolean {
-            return ArgumentsService.getInstance(e.project ?: return false).showExperimental
-        }
-
-        override fun setSelected(e: AnActionEvent, enabled: Boolean) {
-            ArgumentsService.getInstance(e.project ?: return).showExperimental = enabled
-        }
+        override fun isSelected(e: AnActionEvent): Boolean = e.myService?.showExperimental == true
+        override fun setSelected(e: AnActionEvent, enabled: Boolean) = e.myService?.showExperimental = enabled
     }
 
     private class ShowUnsupportedAction : DumbAwareToggleAction() {
@@ -35,13 +28,7 @@ internal class ViewActionGroup : DefaultActionGroup() {
         }
 
         override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
-
-        override fun isSelected(e: AnActionEvent): Boolean {
-            return ArgumentsService.getInstance(e.project ?: return false).showUnsupported
-        }
-
-        override fun setSelected(e: AnActionEvent, enabled: Boolean) {
-            ArgumentsService.getInstance(e.project ?: return).showUnsupported = enabled
-        }
+        override fun isSelected(e: AnActionEvent): Boolean = e.myService?.showUnsupported == true
+        override fun setSelected(e: AnActionEvent, enabled: Boolean) = e.myService?.showUnsupported = enabled
     }
 }

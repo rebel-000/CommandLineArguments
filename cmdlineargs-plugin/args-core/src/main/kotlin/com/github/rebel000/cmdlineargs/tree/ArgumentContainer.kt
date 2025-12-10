@@ -15,27 +15,27 @@ open class ArgumentContainer(name: String) : ArgumentTreeNodeBase(name) {
     }
 
     internal open fun serialize(obj: ObjectWriter) {
-        val oItems = obj.addArray("items", childCount)
-        for (child in innerArguments()) {
-            child.serialize(oItems.addObject())
+        obj.addArray("items", childCount).let {
+            for (child in innerArguments()) {
+                child.serialize(it.addObject())
+            }
         }
     }
 
     internal open fun deserialize(obj: ObjectReader, revision: Int, postprocess: (ArgumentContainer) -> Unit = {}): Boolean {
         removeAllChildren()
-        val oItems = obj.get("items").asArray
-        if (oItems != null) {
-            for (it in oItems) {
-                val item = it.asObject ?: continue
-                val childNode = ArgumentNode("")
-                if (childNode.deserialize(item, revision, postprocess)) {
-                    add(childNode)
+        obj["items"].asArray?.let { items ->
+            for (it in items) {
+                it.asObject?.let { item ->
+                    val childNode = ArgumentNode("")
+                    if (childNode.deserialize(item, revision, postprocess)) {
+                        add(childNode)
+                    }
                 }
             }
             postprocess(this)
-            return true
         }
-        return false
+        return true
     }
 
     override fun isLeaf(): Boolean {

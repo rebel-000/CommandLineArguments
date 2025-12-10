@@ -4,6 +4,7 @@ import com.github.rebel000.cmdlineargs.serialization.ObjectReader
 import com.github.rebel000.cmdlineargs.serialization.ObjectWriter
 import com.intellij.icons.AllIcons
 import com.intellij.util.ui.ThreeStateCheckBox
+import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import java.util.*
 import javax.swing.Icon
 import javax.swing.tree.MutableTreeNode
@@ -30,10 +31,11 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
 
     val filtersString: String
         get() {
-            if (_filtersString == null) {
-                _filtersString = filters.asSequence().joinToString(" ") { it.value.joinToString(" ") }
-            }
-            return _filtersString!!
+            return _filtersString
+                ?: filters
+                    .asSequence()
+                    .joinToString(" ") { it.value.joinToString(" ") }
+                    .also { _filtersString = it }
         }
 
     override val controlType: Companion.ControlType get() {
@@ -48,15 +50,13 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
 
     override var icon: Icon?
         get() {
-            return if (isFolder) {
-                if (isParameter) {
-                    if (isSingle) AllIcons.Actions.GroupByModule
-                    else AllIcons.Actions.GroupByModuleGroup
-                } else {
-                    if (isSingle) AllIcons.Nodes.Module
-                    else AllIcons.Nodes.Folder
-                }
-            } else null
+            return when {
+                !isFolder -> null
+                isParameter && isSingle -> AllIcons.Actions.GroupByModule
+                isParameter -> AllIcons.Actions.GroupByModuleGroup
+                isSingle -> AllIcons.Nodes.Module
+                else -> AllIcons.Nodes.Folder
+            }
         }
         set(_) {}
     
@@ -125,7 +125,7 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
         var newState: ThreeStateCheckBox.State = ThreeStateCheckBox.State.NOT_SELECTED
 
         when {
-            isSingle -> {
+            isFolder && isSingle -> {
                 if (sender != null) {
                     for (child in innerArguments()) {
                         if (child != sender) {
@@ -163,109 +163,102 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
         if (state != newState) {
             state = newState
             isChecked = state != ThreeStateCheckBox.State.NOT_SELECTED
-            val p = getParent() as? ArgumentNode ?: return
-            p.invalidate(this)
+            (getParent() as? ArgumentNode)?.invalidate(this)
         }
     }
 
     override fun serialize(obj: ObjectWriter) {
-        obj.add("name", text)
-        obj.add("desc", description)
-        obj.add("checked", isChecked)
-        val oFilters = obj.addObject("filters")
-        for ((key, values) in filters) {
-            val oFilterValues = oFilters.addArray(key, values.size)
-            for (value in values) {
-                oFilterValues.add(value)
+        obj["name"] = text
+        obj["desc"] = description
+        obj["checked"] = true
+        if (filters.isNotEmpty()) {
+            obj.addObject("filters").let {
+                for ((key, values) in filters) {
+                    val filterValues = it.addArray(key, values.size)
+                    for (value in values) {
+                        filterValues.add(value)
+                    }
+                }
             }
         }
         if (isFolder) {
-            obj.add("param", isParameter)
+            obj["param"] = true
             if (join) {
-                obj.add("join", true)
-                obj.add("join.delimiter", joinSeparator)
-                obj.add("join.prefix", joinPrefix)
-                obj.add("join.postfix", joinPostfix)
+                obj["join"] = true
+                obj["join.delimiter"] = joinSeparator
+                obj["join.prefix"] = joinPrefix
+                obj["join.postfix"] = joinPostfix
             }
-            obj.add("expanded", isExpanded)
-            obj.add("singleChoice", isSingle)
-            val oItems = obj.addArray("items", childCount)
-            for (child in innerArguments()) {
-                child.serialize(oItems.addObject())
+            obj["expanded"] = true
+            obj["singleChoice"] = true
+            obj.addArray("items", childCount).let {
+                for (child in innerArguments()) {
+                    child.serialize(it.addObject())
+                }
             }
+
         }
     }
 
     override fun deserialize(obj: ObjectReader, revision: Int, postprocess: (ArgumentContainer) -> Unit): Boolean {
-        val nodeName = obj.get("name").asString
-        if (nodeName != null) {
-            text = nodeName
-            description = obj.get("desc").asString ?: ""
-            isParameter = obj.get("param").asBoolean == true
-            isSingle = obj.get("singleChoice").asBoolean == true
-            val oFilters = obj.get("filters").asObject
-            if (oFilters != null) {
-                if (revision >= 3) {
-                    filters = mutableMapOf()
-                    for ((key, value) in oFilters) {
-                        val valueArray = value.asArray ?: continue
-                        val filterValues = mutableSetOf<String>()
-                        for (v in valueArray) {
-                            val stringValue = v.asString ?: continue
-                            if (stringValue.isNotBlank()) {
-                                filterValues.add(stringValue)
-                            }
-                        }
-                        if (filterValues.isNotEmpty()) {
-                            filters[key] = filterValues
-                        }
-                    }
-                } else {
-                    filters = mutableMapOf()
-                    for ((key, value) in oFilters) {
-                        val valueArray = (value.asString ?: continue).split(';').map(String::trim)
-                        val filterValues = mutableSetOf<String>()
-                        for (v in valueArray) {
-                            if (v.isNotBlank()) {
-                                filterValues.add(v)
-                            }
-                        }
-                        if (filterValues.isNotEmpty()) {
-                            filters[key] = filterValues
-                        }
+        val nodeName = obj["name"].asString ?: return false
+        text = nodeName
+        description = obj["desc"].asString ?: ""
+        isParameter = obj["param"].asBoolean ?: false
+        isSingle = obj["singleChoice"].asBoolean ?: false
+        val oFilters = obj["filters"].asObject
+        if (oFilters != null) {
+            if (revision >= 3) {
+                filters = mutableMapOf()
+                for ((key, value) in oFilters) {
+                    value.asArray?.let { items ->
+                        items.iterator()
+                            .asSequence()
+                            .mapNotNull { it.asString?.takeIf { s -> s.isNotBlank() } }
+                            .toMutableSet()
+                            .ifNotEmpty { filters[key] = this }
                     }
                 }
-            }
-            isChecked = obj.get("checked").asBoolean == true
-            isExpanded = obj.get("expanded").asBoolean == true
-            removeAllChildren()
-            val oItems = obj.get("items").asArray
-            isFolder = if (revision >=3 ) {
-                oItems != null
             } else {
-                oItems != null && oItems.count() > 0
-            }
-            if (isFolder) {
-                val oItems = oItems!!
-                join = obj.get("join").asBoolean == true
-                joinSeparator = obj.get("join.delimiter").asString ?: ","
-                joinPrefix = obj.get("join.prefix").asString ?: ""
-                joinPostfix = obj.get("join.postfix").asString ?: ""
-                children = Vector(oItems.count())
-                for (it in oItems) {
-                    val item = it.asObject ?: continue
-                    val child = ArgumentNode("")
-                    if (child.deserialize(item, revision, postprocess)) {
-                        child.setParent(this)
-                        children.insertElementAt(child, children.size)
+                filters = mutableMapOf()
+                for ((key, value) in oFilters) {
+                    value.asString?.let { value ->
+                        value
+                            .splitToSequence(';')
+                            .mapNotNull {
+                                it.trim().ifEmpty { null }
+                            }
+                            .toMutableSet()
+                            .ifNotEmpty { filters[key] = this }
                     }
                 }
             }
-            invalidate(null)
-            postprocess(this)
-            return true
         }
-        return false
+        isChecked = obj["checked"].asBoolean ?: false
+        isExpanded = obj["expanded"].asBoolean ?: false
+        removeAllChildren()
+        obj.get("items").asArray?.let { items ->
+            isFolder = revision >= 3 || items.count() > 0
+            if (isFolder) {
+                join = obj["join"].asBoolean ?: false
+                joinSeparator = obj["join.delimiter"].asString ?: ","
+                joinPrefix = obj["join.prefix"].asString ?: ""
+                joinPostfix = obj["join.postfix"].asString ?: ""
+                children = Vector(items.count())
+                for (it in items) {
+                    it.asObject?.let { item ->
+                        val child = ArgumentNode("")
+                        if (child.deserialize(item, revision, postprocess)) {
+                            child.setParent(this)
+                            children.insertElementAt(child, children.size)
+                        }
+                    }
+                }
+            }
+        }
+        invalidate(null)
+        postprocess(this)
+        return true
     }
 
     override fun setChecked(checked: Boolean) {
@@ -275,8 +268,7 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
             } else {
                 uncheck()
             }
-            val p = getParent() as? ArgumentNode ?: return
-            p.invalidate(this)
+            (getParent() as? ArgumentNode)?.invalidate(this)
         }
     }
 

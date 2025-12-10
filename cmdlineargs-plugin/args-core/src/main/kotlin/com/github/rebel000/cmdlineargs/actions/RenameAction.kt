@@ -6,12 +6,12 @@ import com.intellij.openapi.project.DumbAwareAction
 import javax.swing.tree.TreePath
 
 internal class RenameAction : DumbAwareAction(), TreeAction {
-    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext { context ->
-        context.tree.stopEditing()
-        context.tree.selectedNode()?.let { node ->
+    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext {
+        tree.stopEditing()
+        tree.selectedNode()?.let { node ->
             val path = TreePath(node.path)
-            context.tree.selectionPaths = arrayOf(path)
-            context.tree.startEditingAtPath(path)
+            tree.selectionPaths = arrayOf(path)
+            tree.startEditingAtPath(path)
         }
     }
 
@@ -19,7 +19,7 @@ internal class RenameAction : DumbAwareAction(), TreeAction {
 
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabled = e.withArgumentDataContext(false) {
-            it.treeSelectedArguments > 0 && it.treeSelectedCount == it.treeSelectedArguments
+            treeSelectedArguments > 0 && treeSelectedCount == treeSelectedArguments
         }
     }
 }

@@ -3,7 +3,7 @@ package com.github.rebel000.cmdlineargs.provider.rider
 import com.github.rebel000.cmdlineargs.ArgumentsService
 import com.github.rebel000.cmdlineargs.extensions.PlatformExtension
 import com.github.rebel000.cmdlineargs.FilterDefinition
-import com.github.rebel000.cmdlineargs.helpers.getArgumentsAdapterFilterKey
+import com.github.rebel000.cmdlineargs.getArgumentsAdapterFilterKey
 import com.github.rebel000.cmdlineargs.provider.rider.resources.RiderMessages
 import com.github.rebel000.cmdlineargs.resources.Messages
 import com.intellij.execution.RunManager

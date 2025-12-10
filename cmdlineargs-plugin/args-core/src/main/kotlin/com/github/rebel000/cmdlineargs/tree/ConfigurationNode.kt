@@ -1,7 +1,7 @@
 package com.github.rebel000.cmdlineargs.tree
 
 import com.github.rebel000.cmdlineargs.ArgumentsAdapter
-import com.github.rebel000.cmdlineargs.helpers.getArgumentsAdapterName
+import com.github.rebel000.cmdlineargs.getArgumentsAdapterName
 import com.github.rebel000.cmdlineargs.resources.Messages
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.icons.AllIcons
@@ -24,7 +24,7 @@ internal open class ConfigurationNode(text: String, icon: Icon? = null, style: S
         this.style = style
     }
 
-    fun setConfiguration(config: RunnerAndConfigurationSettings, adapter: ArgumentsAdapter?, isActive: Boolean, isGlobalEnabled: Boolean) {
+    fun configure(config: RunnerAndConfigurationSettings, adapter: ArgumentsAdapter?, isActive: Boolean, isGlobalEnabled: Boolean) {
         if (adapter != null) {
             isEnabled = true
             isExperimental = adapter.isExperimental()
@@ -41,9 +41,11 @@ internal open class ConfigurationNode(text: String, icon: Icon? = null, style: S
                 else -> null
             }
             text = "${config.getArgumentsAdapterName()}: ${adapter.getArguments()}"
-            tooltip = when {
-                isExperimental -> Messages.message("tooltip.untrusted")
-                else -> null
+            if (isExperimental) {
+                text = "*$text"
+                tooltip = Messages.message("tooltip.untrusted")
+            } else {
+                tooltip = null
             }
         } else {
             isEnabled = false

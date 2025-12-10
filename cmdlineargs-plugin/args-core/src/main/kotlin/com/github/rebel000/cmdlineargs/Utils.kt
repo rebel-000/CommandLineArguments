@@ -1,4 +1,18 @@
-package com.github.rebel000.cmdlineargs.helpers
+package com.github.rebel000.cmdlineargs
+
+import com.intellij.execution.RunnerAndConfigurationSettings
+
+fun RunnerAndConfigurationSettings.getArgumentsAdapterKey(): String {
+    return "${type.id}:${name}"
+}
+
+fun RunnerAndConfigurationSettings.getArgumentsAdapterFilterKey(): String {
+    return "${type.displayName}:${name}"
+}
+
+fun RunnerAndConfigurationSettings.getArgumentsAdapterName(): String {
+    return "[${type.displayName}] $name"
+}
 
 fun String.matchesWildcard(mask: String): Boolean {
     if (this.isEmpty()) return false

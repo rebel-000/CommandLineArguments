@@ -11,10 +11,10 @@ internal class XmlObjectWriter(key: String, parent: Element? = null) : ObjectWri
         parent?.addContent(xElement)
     }
 
-    override fun add(key: String, value: Boolean) { xElement.addContent(Element(key).addContent(value.toString())) }
-    override fun add(key: String, value: Int) { xElement.addContent(Element(key).addContent(value.toString())) }
-    override fun add(key: String, value: Float) { xElement.addContent(Element(key).addContent(value.toString())) }
-    override fun add(key: String, value: String) { xElement.addContent(Element(key).addContent(value)) }
+    override fun set(key: String, value: Boolean) { xElement.addContent(Element(key).addContent(value.toString())) }
+    override fun set(key: String, value: Int) { xElement.addContent(Element(key).addContent(value.toString())) }
+    override fun set(key: String, value: Float) { xElement.addContent(Element(key).addContent(value.toString())) }
+    override fun set(key: String, value: String) { xElement.addContent(Element(key).addContent(value)) }
     override fun addArray(key: String, capacity: Int): ArrayWriter = XmlArrayWriter(key, xElement)
     override fun addObject(key: String): ObjectWriter = XmlObjectWriter(key, xElement)
 

@@ -9,10 +9,10 @@ import com.intellij.openapi.project.DumbAwareToggleAction
 internal class ShowSharedAction : DumbAwareToggleAction() {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
-    override fun isSelected(e: AnActionEvent): Boolean = ArgumentsService.getInstanceIfCreated(e.project)?.showSharedArguments == true
+    override fun isSelected(e: AnActionEvent): Boolean = e.myService?.showSharedArguments == true
 
     override fun setSelected(e: AnActionEvent, state: Boolean) {
-        val service = ArgumentsService.getInstanceIfCreated(e.project) ?: return
+        val service = e.myService ?: return
         if (state && !SharedWarningDialog().showAndGet()) {
             return
         }

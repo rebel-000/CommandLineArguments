@@ -10,13 +10,13 @@ import com.intellij.openapi.project.DumbAwareAction
 import java.awt.datatransfer.StringSelection
 
 internal class CopyAsPlainTextAction : DumbAwareAction(), TreeAction {
-    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext { context -> 
+    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext {
         val visitor = CollectCopyVisitor()
-        context.tree.forEachSelectedNodeNoRecursion<ArgumentContainer> {
+        tree.forEachSelectedNodeNoRecursion<ArgumentContainer> {
             it.traverse(visitor)
         }
         val value = visitor.toString()
-        if (value.isNotEmpty()) {
+        if (value.isNotBlank()) {
             CopyPasteManager.getInstance().setContents(StringSelection(value))
         }
     }
@@ -26,8 +26,8 @@ internal class CopyAsPlainTextAction : DumbAwareAction(), TreeAction {
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabledAndVisible = false
         e.withArgumentDataContext {
-            e.presentation.isVisible = it.treeSelectedContainers > 0
-            e.presentation.isEnabled = e.presentation.isVisible && it.treeSelectedConfigurations == 0 && !it.treeIsEditing
+            e.presentation.isVisible = treeSelectedContainers > 0
+            e.presentation.isEnabled = e.presentation.isVisible && treeSelectedCount == treeSelectedContainers && !treeIsEditing
         }
     }
 }

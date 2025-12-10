@@ -38,14 +38,9 @@ internal class ArgumentTree(private val myModel: ArgumentTreeModel) : CheckboxTr
     fun selectedNode(): ArgumentTreeNodeBase? = selectionPath?.lastPathComponent as? ArgumentTreeNodeBase
 
     inline fun <reified T : ArgumentTreeNodeBase> selectedNodesNoRecursion(): List<T> {
-        val selectionPaths = selectionPaths?.sortedBy { getRowForPath(it) } ?: return emptyList()
         val nodes = ArrayList<T>(selectionPaths.size)
-        var lastPath: TreePath? = null
-        for (path in selectionPaths) {
-            val node = path.lastPathComponent as? T ?: continue
-            if (lastPath?.isDescendant(path) == true) continue
-            lastPath = path
-            nodes.add(node)
+        forEachSelectedNodeNoRecursion<T> {
+            nodes.add(it)
         }
         nodes.trimToSize()
         return nodes
@@ -55,10 +50,11 @@ internal class ArgumentTree(private val myModel: ArgumentTreeModel) : CheckboxTr
         val selectionPaths = selectionPaths?.sortedBy { getRowForPath(it) } ?: return
         var lastPath: TreePath? = null
         for (path in selectionPaths) {
-            val node = path.lastPathComponent as? T ?: continue
-            if (lastPath?.isDescendant(path) == true) continue
-            lastPath = path
-            action(node)
+            val node = path.lastPathComponent
+            if (node is T && lastPath?.isDescendant(path) != true) {
+                lastPath = path
+                action(node)
+            }
         }
     }
 
@@ -107,11 +103,9 @@ internal class ArgumentTree(private val myModel: ArgumentTreeModel) : CheckboxTr
 
     private fun removeIfEmpty(node: ArgumentNode) {
         if (node.text.isEmpty()) {
-            val select = node.nextSibling ?: node.previousSibling ?: node.parent
+            val select = (node.nextSibling ?: node.previousSibling ?: node.parent) as? ArgumentTreeNodeBase
             myModel.remove(node)
-            if (select != null) {
-                selectionPaths = arrayOf(TreePath(node.path))
-            }
+            select?.let { selectionPaths = arrayOf(TreePath(select.path)) }
         }
     }
 }

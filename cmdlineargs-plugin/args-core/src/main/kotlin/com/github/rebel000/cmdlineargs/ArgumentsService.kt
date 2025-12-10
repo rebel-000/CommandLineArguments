@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import org.jetbrains.kotlin.utils.addToStdlib.ifFalse
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import java.io.File
 import java.util.*
@@ -59,6 +60,8 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     private var _revision = -1
 
     private val adapters = mutableMapOf<String, ArgumentsAdapter>()
+    private val globalStorage: ArgumentsGlobalStorage.State get() = ArgumentsGlobalStorage.getInstance().state
+    private val projectStorage: ArgumentsProjectStorage.State get() = ArgumentsProjectStorage.getInstance(project).state
     private val saveFlow = MutableSharedFlow<Unit>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     private var stateFilePath: String? = locateStateFile()
     private var _isEnabled = true
@@ -91,16 +94,16 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         }
 
     var showExperimental
-        get() = getGlobalStorage().showExperimental
+        get() = globalStorage.showExperimental
         set(value) {
-            getGlobalStorage().showExperimental = value
+            globalStorage.showExperimental = value
             updatePreview()
         }
 
     var showUnsupported
-        get() = getGlobalStorage().showUnsupported
+        get() = globalStorage.showUnsupported
         set(value) {
-            getGlobalStorage().showUnsupported = value
+            globalStorage.showUnsupported = value
             updatePreview()
         }
 
@@ -164,21 +167,21 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     private fun onArgumentsChanged(nodes: List<ArgumentTreeNodeBase>) {
         var shouldUpdate = false
         for (node in nodes) {
-            if (node is ArgumentContainer) {
-                shouldUpdate = true
-            } else if (node is ConfigurationNode) {
-                val adapter = adapters[node.key ?: continue]
-                if (adapter != null) {
-                    adapter.enabled = node.isChecked
-                    if (node.isChecked) {
-                        val visitor = CollectArgsVisitor(adapter.predicate())
-                        model.sharedRoot?.traverse(visitor)
-                        model.projectRoot.traverse(visitor)
-                        adapter.setArguments(visitor.toString())
+            when (node) {
+                is ArgumentContainer -> shouldUpdate = true
+                is ConfigurationNode -> node.key
+                    ?.let { adapters[it] }
+                    ?.let { adapter ->
+                        adapter.enabled = node.isChecked
+                        if (node.isChecked) {
+                            val visitor = CollectArgsVisitor(adapter.predicate())
+                            model.sharedRoot?.traverse(visitor)
+                            model.projectRoot.traverse(visitor)
+                            adapter.setArguments(visitor.toString())
+                        }
+                        updatePreview()
+                        saveFlow.tryEmit(Unit)
                     }
-                    updatePreview()
-                    saveFlow.tryEmit(Unit)
-                }
             }
         }
         if (shouldUpdate) {
@@ -192,38 +195,33 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     internal fun onProcessStarting(s: RunnerAndConfigurationSettings?) {
-        if (!isEnabled || s == null) {
-            return
-        }
-
-        val adapter = getAdapter(s)
-        if (adapter != null) {
-            adapter.onStart()
-        } else {
-            val tempAdapter = createAdapter(s)
-            if (tempAdapter?.isTrusted() == true) {
-                val visitor = CollectArgsVisitor(tempAdapter.predicate())
-                model.sharedRoot?.traverse(visitor)
-                model.projectRoot.traverse(visitor)
-                tempAdapter.setArguments(visitor.toString())
+        if (isEnabled && s != null) {
+            val adapter = getAdapter(s)
+            if (adapter != null) {
+                adapter.onStart()
+            } else {
+                val tempAdapter = createAdapter(s)?.takeIf { it.isTrusted() }
+                if (tempAdapter != null) {
+                    CollectArgsVisitor(tempAdapter.predicate()).let { visitor ->
+                        model.sharedRoot?.traverse(visitor)
+                        model.projectRoot.traverse(visitor)
+                        tempAdapter.setArguments(visitor.toString())
+                    }
+                }
             }
         }
     }
 
     internal fun onProcessStarted(s: RunnerAndConfigurationSettings?) {
-        if (!isEnabled || s == null) {
-            return
+        if (isEnabled && s != null) {
+            getAdapter(s)?.onCleanup()
         }
-
-        getAdapter(s)?.onCleanup()
     }
 
     internal fun onProcessNotStarted(s: RunnerAndConfigurationSettings?) {
-        if (!isEnabled || s == null) {
-            return
+        if (isEnabled && s != null) {
+            getAdapter(s)?.onCleanup()
         }
-
-        getAdapter(s)?.onCleanup()
     }
 
     internal fun onRunConfigurationAdded(s: RunnerAndConfigurationSettings) {
@@ -234,7 +232,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         }
         val adapter = createAdapter(s)
         if (adapter != null) {
-            adapter.enabled = getProjectStorage().enabledConfigs.contains(key)
+            adapter.enabled = projectStorage.enabledConfigs.contains(key)
             adapters[key] = adapter
             markDirty()
         }
@@ -245,18 +243,14 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         val oldKey = existingId?.let { "${s.type.id}:${it}" }
         val newKey = s.getArgumentsAdapterKey()
         if (oldKey != null && newKey != oldKey) {
-            var adapter = getAdapter(s)
-            if (adapter != null) {
+            adapters[oldKey]?.also {
                 adapters.remove(oldKey)
-                getProjectStorage().enabledConfigs.remove(oldKey)
-            } else {
-                adapter = createAdapter(s)
-            }
-            if (adapter != null) {
-                if (adapter.enabled) {
-                    getProjectStorage().enabledConfigs.add(newKey)
+                adapters[newKey] = it
+                if (projectStorage.enabledConfigs.remove(oldKey)) {
+                    projectStorage.enabledConfigs.add(newKey)
                 }
-                adapters[newKey] = adapter
+            } ?: createAdapter(s)?.also {
+                adapters[newKey] = it 
             }
             markDirty()
         }
@@ -265,9 +259,10 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
 
     internal fun onRunConfigurationRemoved(s: RunnerAndConfigurationSettings) {
         markDirty()
-        val key = s.getArgumentsAdapterKey()
-        adapters.remove(key)
-        getProjectStorage().enabledConfigs.remove(key)
+        s.getArgumentsAdapterKey().let {  key ->
+            adapters.remove(key)
+            projectStorage.enabledConfigs.remove(key)
+        }
         update()
     }
 
@@ -277,13 +272,9 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     private fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
-        for (it in ArgumentsAdapterProviderExtension.EP_NAME.extensionList) {
-            val adapter = it.createAdapter(s)
-            if (adapter != null) {
-                return adapter
-            }
+        return ArgumentsAdapterProviderExtension.EP_NAME.extensionList.firstNotNullOfOrNull {
+            it.createAdapter(s)
         }
-        return null
     }
 
     internal fun findAdapter(key: String): ArgumentsAdapter? {
@@ -304,37 +295,30 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     internal fun reload() {
-        stateFilePath = locateStateFile()
-        var serializer: ObjectReader? = null
-        if (stateFilePath != null) {
-            val stateFile = File(stateFilePath!!)
-            if (stateFile.exists()) {
-                tryParseJson(stateFile.readText(), project.thisLogger())?.asJsonObjectOrNull?.let { 
-                    serializer = JsonObjectReader(it)
-                }
-            }
+        val path = locateStateFile().also { stateFilePath = it }
+        val reader = if (path != null) {
+            File(path).takeIf { it.exists() }
+                ?.let { JsonObjectReader.tryParse(it.readText(), project.thisLogger()) }
         } else {
-            serializer = XmlObjectReader(getProjectStorage().args)
+            XmlObjectReader(projectStorage.projectArguments)
         }
-        if (serializer != null) {
-            val revision = serializer.get("revision").asInt ?: serializer.get("version").asInt ?: 0
+        reader?.let { reader ->
+            val filters = getFilters().map { it.key }
+            val revision = reader["revision"].asInt ?: reader["version"].asInt ?: 0
             if (revision >= 3) {
-                isEnabled = serializer.get("enabled").asBoolean ?: true
-                model.previewRoot.isExpanded = serializer.get("preview").asBoolean ?: true
-                val filters = getFilters().map { it.key }
-                val oRoot = serializer.get("root").asObject
-                if (oRoot != null) {
-                    model.projectRoot.deserialize(oRoot, revision) { node ->
+                isEnabled = reader["enabled"].asBoolean ?: true
+                model.previewRoot.isExpanded = reader["preview"].asBoolean ?: true
+                reader["root"].asObject?.let { root ->
+                    model.projectRoot.deserialize(root, revision) { node ->
                         if (node is ArgumentNode) {
                             node.filters = node.filters.filter { it.key in filters }.toMutableMap()
                         }
                     }
                 }
             } else if (revision > 0) {
-                val filters = getFilters().map { it.key }
-                isEnabled = serializer.get("isEnabled").asBoolean ?: true
+                isEnabled = reader["isEnabled"].asBoolean ?: true
                 model.previewRoot.isExpanded = true
-                model.projectRoot.deserialize(serializer, 1) { node ->
+                model.projectRoot.deserialize(reader, revision) { node ->
                     if (node is ArgumentNode) {
                         node.filters = node.filters.filter { it.key in filters }.toMutableMap()
                     }
@@ -348,64 +332,54 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     private fun reloadShared() {
-        val globalState = getGlobalStorage()
-        val revision = globalState.revision
-        val serializer = if (revision >= 3) {
-            XmlObjectReader(globalState.args)
+        val reader = if (revision >= 3) {
+            XmlObjectReader(globalStorage.sharedArguments)
         } else {
-            globalState.sharedArgs?.let {
-                val jsonString = Base64.getDecoder().decode(it).toString(Charsets.UTF_8)
-                tryParseJson(jsonString, project.thisLogger())?.asJsonObjectOrNull?.let { json ->
-                    JsonObjectReader(json)
-                }
-            }
+            globalStorage.sharedArgs
+                ?.let { Base64.getDecoder().decode(it).toString(Charsets.UTF_8) }
+                ?.let { JsonObjectReader.tryParse(it, project.thisLogger()) }
         }
-        if (serializer != null) {
-            val node = ArgumentContainer(Messages.message("toolwindow.sharedNode"))
-            val filters = getFilters().map { it.key }
-            val isValid = node.deserialize(serializer, revision) { node ->
-                if (node is ArgumentNode) {
-                    node.filters = node.filters.filter { it.key in filters }.toMutableMap()
-                }
-            }
-            if (isValid) {
+        reader?.let { reader ->
+            ArgumentContainer(Messages.message("toolwindow.sharedNode")).also {  node ->
                 model.sharedRoot = node
+                val filters = getFilters().map { it.key }
+                node.deserialize(reader, revision) { node ->
+                    if (node is ArgumentNode) {
+                        node.filters = node.filters.filter { it.key in filters }.toMutableMap()
+                    }
+                }.ifFalse { project.thisLogger().warn("[com.github.rebel000.cmdlineargs] Failed to deserialize shared arguments") }
             }
         }
     }
 
     private fun save() {
-        val serializer = if (stateFilePath != null) {
-            JsonObjectWriter()
+        val (writer, finalize) = stateFilePath?.let { path ->
+            JsonObjectWriter().let { 
+                it to { File(path).writeText(it.toString()) }
+            }
+        } ?: XmlObjectWriter("state").let {
+            it to { projectStorage.projectArguments = it.xElement }
         }
-        else {
-            XmlObjectWriter("state")
-        }
-        serializer.add("revision", SERIALIZE_REVISION)
-        serializer.add("enabled", isEnabled)
-        serializer.add("preview", model.previewRoot.isExpanded)
-        model.projectRoot.serialize(serializer.addObject("root"))
-        when (serializer) {
-            is JsonObjectWriter -> File(stateFilePath!!).writeText(serializer.toString())
-            is XmlObjectWriter -> getProjectStorage().args = serializer.xElement
-        }
-        getProjectStorage().enabledConfigs = model.previewRoot.children()
+        writer["revision"] = SERIALIZE_REVISION
+        writer["enabled"] = isEnabled
+        writer["preview"] = model.previewRoot.isExpanded
+        model.projectRoot.serialize(writer.addObject("root"))
+        finalize()
+        projectStorage.enabledConfigs = model.previewRoot.children()
             .asSequence()
-            .mapNotNull {
-                if (it is ConfigurationNode && it.isChecked) it.key else null
+            .mapNotNull { node ->
+                (node as? ConfigurationNode)?.takeIf { it.isChecked }?.key
             }.toMutableSet()
         saveShared()
     }
 
     private fun saveShared() {
-        val sharedNode = model.sharedRoot
-        if (sharedNode != null) {
-            val serializer = XmlObjectWriter("args")
-            val globalState = getGlobalStorage()
-            sharedNode.serialize(serializer)
-            globalState.revision = SERIALIZE_REVISION
-            globalState.args = serializer.xElement
-            globalState.sharedArgs = null
+        model.sharedRoot?.let { root ->
+            with(globalStorage) {
+                revision = SERIALIZE_REVISION
+                sharedArguments = XmlObjectWriter("args").also { w -> root.serialize(w) }.xElement
+                sharedArgs = null
+            }
         }
     }
 
@@ -430,13 +404,9 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
 
     private fun update() {
         if (isEnabled) {
-            val visitors = ArrayList<CollectArgsVisitor>(adapters.size)
-            val collectArgsVisitorMap = mutableMapOf<String, CollectArgsVisitor>()
-            for ((key, value) in adapters) {
-                if (value.enabled) {
-                    val visitor = CollectArgsVisitor(value.predicate())
-                    visitors.add(visitor)
-                    collectArgsVisitorMap[key] = visitor
+            val visitors = adapters.map { 
+                object : CollectArgsVisitor(it.value.predicate()) {
+                    val adapter = it.value
                 }
             }
             val multiVisitor = object : TraverseVisitor<ArgumentNode> {
@@ -471,10 +441,9 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             }
             model.sharedRoot?.traverse(multiVisitor)
             model.projectRoot.traverse(multiVisitor)
-            for ((key, value) in adapters) {
-                if (value.enabled) {
-                    val arguments = collectArgsVisitorMap[key]?.toString() ?: ""
-                    value.setArguments(arguments)
+            for (visitor in visitors) {
+                if (visitor.adapter.enabled) {
+                    visitor.adapter.setArguments(visitor.toString())
                 }
             }
         }
@@ -526,7 +495,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             val isActive = config.configuration in activeConfigurations
             val adapter = getAdapter(config)?.takeIf { showExperimental || !it.isExperimental() }
             if (!showUnsupported && adapter == null) continue 
-            node.setConfiguration(config, adapter, isActive, isEnabled)
+            node.configure(config, adapter, isActive, isEnabled)
         }
         model.invalidate(model.previewRoot, true)
     }

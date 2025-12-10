@@ -1,6 +1,5 @@
 package com.github.rebel000.cmdlineargs.actions
 
-import com.github.rebel000.cmdlineargs.tree.ArgumentContainer
 import com.github.rebel000.cmdlineargs.tree.ArgumentNode
 import com.github.rebel000.cmdlineargs.tree.ArgumentTree
 import com.github.rebel000.cmdlineargs.tree.ArgumentTreeNodeBase
@@ -10,49 +9,49 @@ import com.intellij.openapi.project.DumbAwareAction
 import javax.swing.tree.TreePath
 
 internal class RenameNextAction : DumbAwareAction() {
-    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext { context ->
-        val node = (context.tree.editingPath?.lastPathComponent) as? ArgumentNode
+    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext {
+        val node = (tree.editingPath?.lastPathComponent) as? ArgumentNode
         val parent = node?.parent
         if (parent !is ArgumentTreeNodeBase) {
-            context.tree.stopEditing()
-            return@withArgumentDataContext
+            tree.stopEditing()
+            return
         }
         if (node.isFolder && node.isExpanded && node.childCount > 0) {
             val firstChild = node.getChildAt(0)
             if (firstChild is ArgumentNode) {
-                rename(context.tree, firstChild)
-                return@withArgumentDataContext
+                rename(tree, firstChild)
+                return
             }
         }
         val nodeSibling = node.nextSibling
         if (nodeSibling is ArgumentNode) {
-            rename(context.tree, nodeSibling)
-            return@withArgumentDataContext
+            rename(tree, nodeSibling)
+            return
         }
         tree.stopEditing()
         if (node.text.isNotEmpty()) {
             val newNode = ArgumentNode("")
-            context.model.tryInsertAfter(newNode, node)
-            rename(context.tree, newNode)
+            model.tryInsertAfter(newNode, node)
+            rename(tree, newNode)
             return
         }
         val parentSibling = parent.nextSibling
         if (parentSibling is ArgumentNode) {
-            rename(context.tree, parentSibling)
-            return@withArgumentDataContext
+            rename(tree, parentSibling)
+            return
         }
         if (parent is ArgumentNode) {
             val newNode = ArgumentNode("")
-            context.model.tryInsertAfter(newNode, parent)
-            rename(context.tree, newNode)
-            return@withArgumentDataContext
+            model.tryInsertAfter(newNode, parent)
+            rename(tree, newNode)
+            return
         }
     }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
-        e.presentation.isEnabled = e.withArgumentDataContext(false) { it.treeIsEditing }
+        e.presentation.isEnabled = e.withArgumentDataContext(false) { treeIsEditing }
     }
 
     private fun rename(tree: ArgumentTree, node: ArgumentNode) {
