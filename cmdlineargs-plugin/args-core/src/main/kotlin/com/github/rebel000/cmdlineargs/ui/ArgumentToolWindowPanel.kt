@@ -49,7 +49,7 @@ internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowP
         tree.componentPopupMenu = am.createActionPopupMenu(ActionPlaces.POPUP, menu).component
     }
 
-    fun restoreExpand() {
+    private fun restoreExpand() {
         context.model.root.traverse<ArgumentTreeNodeBase> {
             if (it.isExpanded) {
                 tree.expandPath(TreePath(it.path))
