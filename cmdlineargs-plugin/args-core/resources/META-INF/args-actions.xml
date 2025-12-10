@@ -3,9 +3,11 @@
         <actionPromoter implementation="com.github.rebel000.cmdlineargs.actions.TreeActionPromoter" />
     </extensions>
     <actions resource-bundle="messages.CommandlineArgsActionsBundle">
+        <action id="cmdlineargs.collapse-all" class="com.github.rebel000.cmdlineargs.actions.CollapseAllAction" icon="AllIcons.Actions.Collapseall" use-shortcut-of="CollapseRegion" />
         <action id="cmdlineargs.copy-as-plain" class="com.github.rebel000.cmdlineargs.actions.CopyAsPlainTextAction" use-shortcut-of="CopyAsPlainText" />
         <action id="cmdlineargs.disable" class="com.github.rebel000.cmdlineargs.actions.DisableAction" icon="AllIcons.Actions.Pause"/>
         <action id="cmdlineargs.edit" class="com.github.rebel000.cmdlineargs.actions.EditAction" icon="AllIcons.Actions.Edit" use-shortcut-of="ShowIntentionActions" />
+        <action id="cmdlineargs.expand-selected" class="com.github.rebel000.cmdlineargs.actions.ExpandSelectedAction" icon="AllIcons.Actions.Expandall" use-shortcut-of="ExpandRegion" />
         <action id="cmdlineargs.move-down" class="com.github.rebel000.cmdlineargs.actions.MoveDownAction" icon="AllIcons.Actions.MoveDown" use-shortcut-of="Arrangement.Rule.Match.Condition.Move.Down" />
         <action id="cmdlineargs.move-up" class="com.github.rebel000.cmdlineargs.actions.MoveUpAction" icon="AllIcons.Actions.MoveUp" use-shortcut-of="Arrangement.Rule.Match.Condition.Move.Up" />
         <action id="cmdlineargs.reload" class="com.github.rebel000.cmdlineargs.actions.ReloadAction" />
@@ -19,6 +21,9 @@
             <reference ref="cmdlineargs.edit" />
             <separator />
             <group id="cmdlineargs.toolwindow.toolbar.copy-as-commandline" class="com.github.rebel000.cmdlineargs.actions.CopyCommandLineActionGroup" icon="AllIcons.Actions.Copy" popup="true" searchable="false" />
+            <separator />
+            <reference ref="cmdlineargs.expand-selected" />
+            <reference ref="cmdlineargs.collapse-all" />
         </group>
 
         <group id="cmdlineargs.toolwindow.toolbar.ex" searchable="false">
