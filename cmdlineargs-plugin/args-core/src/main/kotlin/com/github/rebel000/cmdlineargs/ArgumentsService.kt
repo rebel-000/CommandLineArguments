@@ -55,6 +55,8 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         fun getInstanceIfCreated(project: Project?): ArgumentsService? = project?.serviceIfCreated()
     }
 
+    private var _revision = -1
+
     private val adapters = mutableMapOf<String, ArgumentsAdapter>()
     private val saveFlow = MutableSharedFlow<Unit>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     private var stateFilePath: String? = locateStateFile()
@@ -85,6 +87,8 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             getGlobalStorage().showUnsupported = value
             updatePreview()
         }
+
+    val revision: Int get() = _revision
 
     init {
         model.addTreeModelListener(object : TreeModelListener {
@@ -205,6 +209,10 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         }
     }
 
+    internal fun markDirty() {
+        _revision++
+    }
+
     internal fun onProcessStarting(s: RunnerAndConfigurationSettings?) {
         if (!isEnabled || s == null) {
             return
@@ -250,9 +258,9 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         if (adapter != null) {
             adapter.enabled = getProjectStorage().enabledConfigs.contains(key)
             adapters[key] = adapter
+            markDirty()
         }
         update()
-        updateCopyActions()
     }
 
     internal fun onRunConfigurationChanged(s: RunnerAndConfigurationSettings, existingId: String?) {
@@ -272,17 +280,17 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 }
                 adapters[newKey] = adapter
             }
-            updateCopyActions()
+            markDirty()
         }
         update()
     }
 
     internal fun onRunConfigurationRemoved(s: RunnerAndConfigurationSettings) {
+        markDirty()
         val key = s.getArgumentsAdapterKey()
         adapters.remove(key)
         getProjectStorage().enabledConfigs.remove(key)
         update()
-        updateCopyActions()
     }
 
     @Suppress("unused")
