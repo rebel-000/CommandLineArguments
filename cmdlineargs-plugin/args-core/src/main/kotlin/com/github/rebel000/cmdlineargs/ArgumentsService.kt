@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import java.io.File
 import java.util.*
 import javax.swing.event.TreeModelEvent
@@ -46,7 +47,7 @@ import kotlin.time.Duration.Companion.seconds
 
 @OptIn(FlowPreview::class)
 @Service(Service.Level.PROJECT)
-class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Disposable {
+class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Disposable, TreeModelListener {
     companion object {
         const val SERIALIZE_REVISION: Int = 3
         val DEFERRED_SAVE_DELAY: Duration = 1.seconds
@@ -91,45 +92,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     val revision: Int get() = _revision
 
     init {
-        model.addTreeModelListener(object : TreeModelListener {
-            override fun treeNodesChanged(e: TreeModelEvent?) {
-                val children = e?.children
-                if (children != null && children.isNotEmpty()) {
-                    ApplicationManager.getApplication().invokeLater {
-                        val nodes = children.filterIsInstance<ArgumentTreeNodeBase>()
-                        onArgumentsChanged(nodes)
-                    }
-                }
-            }
-
-            override fun treeNodesInserted(e: TreeModelEvent?) {
-                val node = e?.path?.lastOrNull() as? ArgumentTreeNodeBase
-                if (node != null) {
-                    ApplicationManager.getApplication().invokeLater {
-                        onArgumentsChanged(listOf(node))
-                    }
-                }
-            }
-
-            override fun treeNodesRemoved(e: TreeModelEvent?) {
-                val node = e?.path?.lastOrNull() as? ArgumentTreeNodeBase
-                if (node != null) {
-                    ApplicationManager.getApplication().invokeLater {
-                        onArgumentsChanged(listOf(node))
-                    }
-                }
-            }
-
-            override fun treeStructureChanged(e: TreeModelEvent?) {
-                val node = e?.path?.lastOrNull() as? ArgumentTreeNodeBase
-                if (node != null) {
-                    ApplicationManager.getApplication().invokeLater {
-                        onArgumentsChanged(listOf(node))
-                    }
-                }
-            }
-        })
-        reload()
+        model.addTreeModelListener(this)
         coroScope.launch { saveFlow.debounce(DEFERRED_SAVE_DELAY).collectLatest { save() } }
         ApplicationManager.getApplication().invokeLater {
             update()
@@ -551,6 +514,30 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             node.setConfiguration(config, adapter, isActive, isEnabled)
         }
         model.invalidate(model.previewRoot, true)
+    }
+
+    override fun treeNodesChanged(e: TreeModelEvent?) {
+        e?.children
+            ?.filterIsInstance<ArgumentTreeNodeBase>()
+            ?.ifNotEmpty { ApplicationManager.getApplication().invokeLater { onArgumentsChanged(this) } }
+    }
+
+    override fun treeNodesInserted(e: TreeModelEvent?) {
+        (e?.treePath?.lastPathComponent as? ArgumentTreeNodeBase)?.let {
+            ApplicationManager.getApplication().invokeLater { onArgumentsChanged(listOf(it)) }
+        }
+    }
+
+    override fun treeNodesRemoved(e: TreeModelEvent?) {
+        (e?.treePath?.lastPathComponent as? ArgumentTreeNodeBase)?.let {
+            ApplicationManager.getApplication().invokeLater { onArgumentsChanged(listOf(it)) }
+        }
+    }
+
+    override fun treeStructureChanged(e: TreeModelEvent?) {
+        (e?.treePath?.lastPathComponent as? ArgumentTreeNodeBase)?.let {
+            ApplicationManager.getApplication().invokeLater { onArgumentsChanged(listOf(it)) }
+        }
     }
 }
 
