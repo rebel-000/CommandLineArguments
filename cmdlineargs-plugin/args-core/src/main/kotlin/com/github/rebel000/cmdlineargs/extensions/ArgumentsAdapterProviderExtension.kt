@@ -10,6 +10,5 @@ interface ArgumentsAdapterProviderExtension {
             ExtensionPointName.create<ArgumentsAdapterProviderExtension>("com.github.rebel000.cmdlineargs.extensions.adapterProvider")
     }
 
-    fun isSupported(s: RunnerAndConfigurationSettings): Boolean
     fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter?
 }

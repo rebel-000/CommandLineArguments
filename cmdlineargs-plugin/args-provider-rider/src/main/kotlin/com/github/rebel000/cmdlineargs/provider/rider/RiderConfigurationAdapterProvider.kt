@@ -21,18 +21,6 @@ import com.jetbrains.rider.run.configurations.project.DotNetProjectConfiguration
 import com.jetbrains.rider.run.configurations.uwp.UwpConfiguration
 
 internal class RiderConfigurationAdapterProvider : ArgumentsAdapterProviderExtension {
-    override fun isSupported(s: RunnerAndConfigurationSettings): Boolean {
-        val config = s.configuration
-        return config is CppProjectConfiguration
-                || config is UwpConfiguration
-                || config is DotNetExeConfiguration
-                || config is DotNetProjectConfiguration
-                || config is ExeConfiguration
-                || config is LaunchSettingsConfiguration
-                || config is DotNetStaticMethodConfiguration
-                || config is RiderMultiPlatformConfiguration
-    }
-
     override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
         return when (s.configuration) {
             is CppProjectConfiguration -> CppProjectConfigurationAdapter(s)

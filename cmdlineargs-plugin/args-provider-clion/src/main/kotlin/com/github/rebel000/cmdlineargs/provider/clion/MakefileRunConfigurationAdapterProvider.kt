@@ -6,10 +6,6 @@ import com.intellij.execution.RunnerAndConfigurationSettings
 import com.jetbrains.lang.makefile.MakefileRunConfiguration
 
 class MakefileRunConfigurationAdapterProvider : ArgumentsAdapterProviderExtension {
-    override fun isSupported(s: RunnerAndConfigurationSettings): Boolean {
-        return s.configuration is MakefileRunConfiguration
-    }
-
     override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
         return when (s.configuration) {
             is MakefileRunConfiguration -> MakefileRunConfigurationAdapter(s)

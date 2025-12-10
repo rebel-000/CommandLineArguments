@@ -6,10 +6,6 @@ import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.sh.run.ShRunConfiguration
 
 internal class ShRunConfigurationAdapterProvider : ArgumentsAdapterProviderExtension {
-    override fun isSupported(s: RunnerAndConfigurationSettings): Boolean {
-        return s.configuration is ShRunConfiguration
-    }
-
     override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
         return when (s.configuration) {
             is ShRunConfiguration -> ShRunConfigurationAdapter(s)
