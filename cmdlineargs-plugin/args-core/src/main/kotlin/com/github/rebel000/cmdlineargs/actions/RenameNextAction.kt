@@ -29,18 +29,24 @@ internal class RenameNextAction : DumbAwareAction() {
             rename(context.tree, nodeSibling)
             return@withArgumentDataContext
         }
+        tree.stopEditing()
+        if (node.text.isNotEmpty()) {
+            val newNode = ArgumentNode("")
+            context.model.tryInsertAfter(newNode, node)
+            rename(context.tree, newNode)
+            return
+        }
         val parentSibling = parent.nextSibling
         if (parentSibling is ArgumentNode) {
             rename(context.tree, parentSibling)
             return@withArgumentDataContext
         }
-        if (parent is ArgumentContainer) {
+        if (parent is ArgumentNode) {
             val newNode = ArgumentNode("")
             context.model.tryInsertAfter(newNode, parent)
             rename(context.tree, newNode)
             return@withArgumentDataContext
         }
-        context.tree.stopEditing()
     }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
