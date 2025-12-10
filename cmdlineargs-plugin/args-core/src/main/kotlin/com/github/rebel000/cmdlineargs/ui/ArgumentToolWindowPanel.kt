@@ -25,11 +25,12 @@ internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowP
     init {
         val service = ArgumentsService.getInstance(project)
         tree = ArgumentTree(service.model)
-        add(ScrollPaneFactory.createScrollPane(tree))
         ArgumentTreeDnDSupport(tree).install(this)
         context.install(service, tree)
         installActions()
         service.model.addTreeModelListener(this)
+        add(ScrollPaneFactory.createScrollPane(tree))
+        restoreExpand()
     }
 
     override fun dispose() {
