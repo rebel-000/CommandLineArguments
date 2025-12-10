@@ -18,7 +18,7 @@
             <reference ref="cmdlineargs.popup.new" />
             <reference ref="cmdlineargs.edit" />
             <separator />
-            <group id="cmdlineargs.toolwindow.toolbar.copy-as-commandline" class="com.github.rebel000.cmdlineargs.actions.CopyCommandLineActionGroup" icon="AllIcons.Actions.ChangeView" popup="true" searchable="false" />
+            <group id="cmdlineargs.toolwindow.toolbar.copy-as-commandline" class="com.github.rebel000.cmdlineargs.actions.CopyCommandLineActionGroup" icon="AllIcons.Actions.Copy" popup="true" searchable="false" />
         </group>
 
         <group id="cmdlineargs.toolwindow.toolbar.ex" searchable="false">
