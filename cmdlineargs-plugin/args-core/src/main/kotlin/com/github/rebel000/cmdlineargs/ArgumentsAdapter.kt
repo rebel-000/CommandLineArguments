@@ -1,8 +1,5 @@
 package com.github.rebel000.cmdlineargs
 
-import com.github.rebel000.cmdlineargs.helpers.getArgumentsAdapterFilterKey
-import com.github.rebel000.cmdlineargs.helpers.getArgumentsAdapterKey
-import com.github.rebel000.cmdlineargs.helpers.matchesWildcard
 import com.github.rebel000.cmdlineargs.tree.ArgumentNode
 import com.intellij.execution.RunnerAndConfigurationSettings
 import java.lang.ref.WeakReference
@@ -19,6 +16,9 @@ abstract class ArgumentsAdapter(settings: RunnerAndConfigurationSettings) {
     }
 
     private val _settings = WeakReference(settings)
+    private val projectStorage: ArgumentsProjectStorage.State?
+        get() = settings?.let { ArgumentsProjectStorage.getInstance(it.configuration.project).state }
+
     val key = settings.getArgumentsAdapterKey()
     val filterKey = settings.getArgumentsAdapterFilterKey()
     val type = settings.type
@@ -36,53 +36,43 @@ abstract class ArgumentsAdapter(settings: RunnerAndConfigurationSettings) {
 
     fun isTrusted(): Boolean {
         if (isExperimental()) {
-            val service = ArgumentsService.getInstance(settings?.configuration?.project ?: return false)
-            val storage = service.getProjectStorage()
-            return storage.trustedConfigTypes.contains(type.id) || storage.trustedConfigs.contains(key)
+            return projectStorage?.let {
+                it.trustedConfigTypes.contains(type.id) || it.trustedConfigs.contains(key)
+            } == true
         }
         return true
     }
 
     internal fun isTrustedByName(): Boolean? {
         if (isExperimental()) {
-            return ArgumentsService
-                .getInstance(settings?.configuration?.project ?: return false)
-                .getProjectStorage()
-                .trustedConfigs
-                .contains(key)
+            return projectStorage?.trustedConfigs?.contains(key) == true
         }
         return null
     }
 
     internal fun isTrustedByType(): Boolean? {
         if (isExperimental()) {
-            return ArgumentsService
-                .getInstance(settings?.configuration?.project ?: return false)
-                .getProjectStorage()
-                .trustedConfigTypes
-                .contains(type.id)
+            return projectStorage?.trustedConfigTypes?.contains(type.id) == true
         }
         return null
     }
 
     internal fun setTrustedByName(trusted: Boolean) {
         if (isExperimental()) {
-            val service = ArgumentsService.getInstance(settings?.configuration?.project ?: return)
             if (trusted) {
-                service.getProjectStorage().trustedConfigs.add(key)
+                projectStorage?.trustedConfigs?.add(key)
             } else {
-                service.getProjectStorage().trustedConfigs.remove(key)
+                projectStorage?.trustedConfigs?.remove(key)
             }
         }
     }
 
     internal fun setTrustedByType(trusted: Boolean) {
         if (isExperimental()) {
-            val service = ArgumentsService.getInstance(settings?.configuration?.project ?: return)
             if (trusted) {
-                service.getProjectStorage().trustedConfigTypes.add(type.id)
+                projectStorage?.trustedConfigTypes?.add(type.id)
             } else {
-                service.getProjectStorage().trustedConfigTypes.remove(type.id)
+                projectStorage?.trustedConfigTypes?.remove(type.id)
             }
         }
     }
