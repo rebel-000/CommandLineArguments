@@ -13,17 +13,23 @@ import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.ui.ScrollPaneFactory
+import javax.swing.event.TreeModelEvent
+import javax.swing.event.TreeModelListener
+import javax.swing.tree.TreePath
 
-internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowPanel(true), Disposable {
+internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowPanel(true), TreeModelListener, Disposable {
     private val context = ArgumentDataContext()
     private val copyPasteProvider = CopyPasteProvider()
-    private val tree = ArgumentTree(ArgumentsService.getInstance(project).model)
+    private val tree: ArgumentTree
 
     init {
+        val service = ArgumentsService.getInstance(project)
+        tree = ArgumentTree(service.model)
         add(ScrollPaneFactory.createScrollPane(tree))
         ArgumentTreeDnDSupport(tree).install(this)
-        context.install(ArgumentsService.getInstance(project), tree)
+        context.install(service, tree)
         installActions()
+        service.model.addTreeModelListener(this)
     }
 
     private fun installActions() {
@@ -35,7 +41,18 @@ internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowP
         tree.componentPopupMenu = am.createActionPopupMenu(ActionPlaces.POPUP, menu).component
     }
 
+    fun restoreExpand() {
+        context.model.root.traverse<ArgumentTreeNodeBase> {
+            if (it.isExpanded) {
+                tree.expandPath(TreePath(it.path))
+                return@traverse true
+            }
+            return@traverse false
+        }
+    }
+
     override fun dispose() {
+        ArgumentsService.getInstance(project).model.removeTreeModelListener(this)
         context.uninstall()
     }
 
@@ -49,17 +66,12 @@ internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowP
         sink[PlatformDataKeys.DELETE_ELEMENT_PROVIDER] = copyPasteProvider
     }
 
-    fun getTitleActions(): List<AnAction> {
-        val treeExpander = DefaultTreeExpander(tree)
-        return listOf(
-            ActionManager.getInstance().getAction("cmdlineargs.toolwindow.toolbar"),
-            Separator(),
-            CommonActionsManager.getInstance().createExpandAllAction(treeExpander, tree),
-            CommonActionsManager.getInstance().createCollapseAllAction(treeExpander, tree)
-        )
-    }
-
-    fun getExtraActions(): ActionGroup {
-        return ActionManager.getInstance().getAction("cmdlineargs.toolwindow.toolbar.ex") as ActionGroup
+    override fun treeNodesChanged(e: TreeModelEvent?) = Unit
+    override fun treeNodesInserted(e: TreeModelEvent?) = Unit
+    override fun treeNodesRemoved(e: TreeModelEvent?) = Unit
+    override fun treeStructureChanged(e: TreeModelEvent?) {
+        if (e?.treePath?.lastPathComponent === context.model.root) {
+            restoreExpand()
+        }
     }
 }
