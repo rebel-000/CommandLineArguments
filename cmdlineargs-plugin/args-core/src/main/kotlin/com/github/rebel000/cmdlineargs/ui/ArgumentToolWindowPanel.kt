@@ -32,6 +32,14 @@ internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowP
         service.model.addTreeModelListener(this)
     }
 
+    fun getTitleActions(): List<AnAction> {
+        return listOf(ActionManager.getInstance().getAction("cmdlineargs.toolwindow.toolbar"))
+    }
+
+    fun getExtraActions(): ActionGroup {
+        return ActionManager.getInstance().getAction("cmdlineargs.toolwindow.toolbar.ex") as ActionGroup
+    }
+
     private fun installActions() {
         val am = ActionManager.getInstance()
         RenamePrevAction().registerCustomShortcutSet(CustomShortcutSet.fromString("UP"), tree)
