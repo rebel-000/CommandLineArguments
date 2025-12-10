@@ -84,4 +84,8 @@ abstract class ArgumentsAdapter(settings: RunnerAndConfigurationSettings) {
             }
         }
     }
+
+    internal fun isVisible(showExperimental: Boolean): Boolean {
+        return showExperimental || !isExperimental()
+    }
 }

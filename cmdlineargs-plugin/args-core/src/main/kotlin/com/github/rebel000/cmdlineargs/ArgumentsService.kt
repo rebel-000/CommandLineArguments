@@ -306,7 +306,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
 
     fun getAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
         val adapter = adapters[s.getArgumentsAdapterKey()]
-        return adapter?.takeIf { it.settings === s }
+        return adapter?.takeIf { it.settings === s && it.isVisible(showExperimental) }
     }
 
     private fun getGlobalStorage(): ArgumentsGlobalStorage.State {
