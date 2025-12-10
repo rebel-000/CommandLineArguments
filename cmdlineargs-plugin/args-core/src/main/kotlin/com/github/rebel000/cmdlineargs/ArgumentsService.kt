@@ -264,7 +264,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     internal fun onRunConfigurationChanged(s: RunnerAndConfigurationSettings, existingId: String?) {
-        val oldKey = existingId?.let { "${s.type.id}:it" }
+        val oldKey = existingId?.let { "${s.type.id}:${it}" }
         val newKey = s.getArgumentsAdapterKey()
         if (oldKey != null && newKey != oldKey) {
             var adapter = getAdapter(s)
