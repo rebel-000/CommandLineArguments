@@ -37,7 +37,6 @@
             <reference ref="$Cut" />
             <reference ref="$Copy" />
             <reference ref="cmdlineargs.copy-as-plain" />
-            <group id="cmdlineargs.toolwindow.popup.copy-as-arguments" class="com.github.rebel000.cmdlineargs.actions.CopyAsArgumentsActionGroup" popup="true" searchable="false" />
             <reference ref="$Paste" />
             <separator />
             <reference ref="$Delete" />
