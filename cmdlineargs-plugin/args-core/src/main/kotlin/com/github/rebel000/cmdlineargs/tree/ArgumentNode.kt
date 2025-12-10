@@ -5,6 +5,7 @@ import com.github.rebel000.cmdlineargs.serialization.ObjectWriter
 import com.intellij.icons.AllIcons
 import com.intellij.util.ui.ThreeStateCheckBox
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
+import org.jetbrains.kotlin.utils.addToStdlib.ifTrue
 import java.util.*
 import javax.swing.Icon
 import javax.swing.tree.MutableTreeNode
@@ -169,8 +170,8 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
 
     override fun serialize(obj: ObjectWriter) {
         obj["name"] = text
-        obj["desc"] = description
-        obj["checked"] = true
+        if (description.isNotBlank()) { obj["desc"] = description }
+        isChecked.ifTrue { obj["checked"] = true }
         if (filters.isNotEmpty()) {
             obj.addObject("filters").let {
                 for ((key, values) in filters) {
@@ -182,15 +183,15 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
             }
         }
         if (isFolder) {
-            obj["param"] = true
+            isParameter.ifTrue { obj["param"] = true }
             if (join) {
                 obj["join"] = true
                 obj["join.delimiter"] = joinSeparator
                 obj["join.prefix"] = joinPrefix
                 obj["join.postfix"] = joinPostfix
             }
-            obj["expanded"] = true
-            obj["singleChoice"] = true
+            isExpanded.ifTrue { obj["expanded"] = true }
+            isSingle.ifTrue { obj["singleChoice"] = true }
             obj.addArray("items", childCount).let {
                 for (child in innerArguments()) {
                     child.serialize(it.addObject())
