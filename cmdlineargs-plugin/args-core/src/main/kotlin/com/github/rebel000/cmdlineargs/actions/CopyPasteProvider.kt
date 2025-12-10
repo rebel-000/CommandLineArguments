@@ -5,7 +5,10 @@ import com.github.rebel000.cmdlineargs.helpers.tryParseJson
 import com.github.rebel000.cmdlineargs.serialization.json.JsonObjectReader
 import com.github.rebel000.cmdlineargs.serialization.json.JsonObjectWriter
 import com.github.rebel000.cmdlineargs.tree.*
-import com.github.rebel000.cmdlineargs.tree.visitors.CollectCopyVisitor
+import com.google.gson.JsonObject
+import com.google.gson.Strictness
+import com.google.gson.internal.Streams
+import com.google.gson.stream.JsonWriter
 import com.intellij.ide.CopyProvider
 import com.intellij.ide.CutProvider
 import com.intellij.ide.DeleteProvider
@@ -16,6 +19,10 @@ import com.intellij.openapi.ide.CopyPasteManager
 import org.jetbrains.kotlin.idea.refactoring.project
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
+import java.awt.datatransfer.Transferable
+import java.awt.datatransfer.UnsupportedFlavorException
+import java.io.IOException
+import java.io.StringWriter
 import java.util.*
 import javax.swing.tree.TreePath
 import kotlin.math.max
@@ -29,21 +36,31 @@ internal class CopyPasteProvider : CopyProvider, CutProvider, PasteProvider, Del
 
     override fun performCut(dc: DataContext) = dc.withArgumentDataContext { context ->
         val index: Int? = context.tree.selectionRows?.firstOrNull()
-        val visitor = CollectCopyVisitor()
+        val jsonSerializer = JsonObjectWriter().apply { add($$"$type", JSON_TYPE) }
+        val jsonContent = jsonSerializer.addArray($$"$content", context.tree.selectionCount)
         context.tree.forEachSelectedNodeNoRecursion<ArgumentContainer> {
-            it.traverse(visitor)
+            it.serialize(jsonContent.addObject())
             context.model.remove(it)
         }
         index?.let { context.tree.addSelectionRow(it) }
-        val value = visitor.toString()
-        if (value.isNotEmpty()) {
-            CopyPasteManager.getInstance().setContents(StringSelection(value))
+        if (!jsonSerializer.jObject.isEmpty) {
+            CopyPasteManager.getInstance().setContents(MyTransferable(jsonSerializer.jObject))
         }
     }
 
     override fun isCutEnabled(dc: DataContext): Boolean {
         return dc.withArgumentDataContext(false) {
-            it.treeSelectedContainers > 0 && it.treeSelectedCount == it.treeSelectedContainers && !it.treeIsEditing
+            when {
+                it.treeIsEditing -> {
+                    false
+                }
+                it.treeSelectedContainers > 0 -> {
+                    it.treeSelectedCount == it.treeSelectedContainers
+                }
+                else -> {
+                    false
+                }
+            }
         }
     }
 
@@ -52,15 +69,13 @@ internal class CopyPasteProvider : CopyProvider, CutProvider, PasteProvider, Del
     override fun performCopy(dc: DataContext) = dc.withArgumentDataContext { context ->
         val isArguments = context.treeSelectedContainers > 0
         if (isArguments) {
-            val jSerializer = JsonObjectWriter()
-            jSerializer.add($$"$type", JSON_TYPE)
-            val content = jSerializer.addArray($$"$content", context.tree.selectionCount)
+            val jsonSerializer = JsonObjectWriter().apply { add($$"$type", JSON_TYPE) }
+            val jsonContent = jsonSerializer.addArray($$"$content", context.tree.selectionCount)
             context.tree.forEachSelectedNodeNoRecursion<ArgumentContainer> {
-                it.serialize(content.addObject())
+                it.serialize(jsonContent.addObject())
             }
-            val value = jSerializer.toString()
-            if (value.isNotEmpty()) {
-                CopyPasteManager.getInstance().setContents(StringSelection(value))
+            if (!jsonSerializer.jObject.isEmpty) {
+                CopyPasteManager.getInstance().setContents(MyTransferable(jsonSerializer.jObject))
             }
         } else {
             val values = ArrayList<String>()
@@ -81,10 +96,18 @@ internal class CopyPasteProvider : CopyProvider, CutProvider, PasteProvider, Del
     override fun isCopyEnabled(dc: DataContext): Boolean {
         return dc.withArgumentDataContext(false) {
             when {
-                it.treeIsEditing -> false
-                it.treeSelectedContainers > 0 -> (it.treeSelectedCount == it.treeSelectedContainers)
-                it.treeSelectedConfigurations > 0 -> (it.treeSelectedCount == it.treeSelectedConfigurations)
-                else -> false
+                it.treeIsEditing -> {
+                    false
+                }
+                it.treeSelectedContainers > 0 -> {
+                    it.treeSelectedCount == it.treeSelectedContainers
+                }
+                it.treeSelectedConfigurations > 0 -> {
+                    it.treeSelectedCount == it.treeSelectedConfigurations
+                }
+                else -> {
+                    false
+                }
             }
         }
     }
@@ -93,48 +116,58 @@ internal class CopyPasteProvider : CopyProvider, CutProvider, PasteProvider, Del
 
     override fun performPaste(dc: DataContext) = dc.withArgumentDataContext { context ->
         context.tree.stopEditing()
-        CopyPasteManager.getInstance().getContents<String?>(DataFlavor.stringFlavor)?.let { content ->
-            if (!pasteAsJson(content, context.tree, context.model)) {
-                pasteAsPlainText(content, context.tree, context.model)
+        val copyPaste = CopyPasteManager.getInstance()
+        when {
+            copyPaste.areDataFlavorsAvailable(MyTransferable.INNER_FLAVOR) -> {
+                copyPaste.getContents<JsonObject>(MyTransferable.INNER_FLAVOR)
+                    ?.let { jContent -> pasteAsJson(JsonObjectReader(jContent), context.tree, context.model) }
+            }
+            copyPaste.areDataFlavorsAvailable(MyTransferable.JSON_FLAVOR) -> {
+                copyPaste.getContents<String>(MyTransferable.JSON_FLAVOR)
+                    ?.let { pasteAsJson(JsonObjectReader.tryParse(it, null), context.tree, context.model) }
+            }
+            copyPaste.areDataFlavorsAvailable(DataFlavor.stringFlavor) -> {
+                copyPaste.getContents<String>(DataFlavor.stringFlavor)?.let { content ->
+                    if (!pasteAsJson(JsonObjectReader.tryParse(content, null), context.tree, context.model)) {
+                        pasteAsPlainText(content, context.tree, context.model)
+                    }
+                }
             }
         }
     }
 
     override fun isPastePossible(dc: DataContext): Boolean {
-        return dc.withArgumentDataContext(false) {
-            it.treeSelectedContainers > 0
-        }
+        return dc.withArgumentDataContext(false) { context -> context.treeSelectedContainers != 0 && context.treeSelectedCount == 1 }
+                && CopyPasteManager.getInstance().areDataFlavorsAvailable(MyTransferable.INNER_FLAVOR, MyTransferable.JSON_FLAVOR, DataFlavor.stringFlavor)
     }
 
-    override fun isPasteEnabled(dc: DataContext): Boolean {
-        return dc.withArgumentDataContext(false) { it.treeSelectedCount == 1 } 
-                && CopyPasteManager.getInstance().areDataFlavorsAvailable(DataFlavor.stringFlavor)
-    }
+    override fun isPasteEnabled(dc: DataContext): Boolean = true
 
-    private fun pasteAsJson(content: String, tree: ArgumentTree, model: ArgumentTreeModel): Boolean {
-        val jContent = tryParseJson(content, null)
-        if (jContent == null || !jContent.isJsonObject) return false
-        val jSerializer = JsonObjectReader(jContent.asJsonObject)
-        if (jSerializer.get($$"$type").asString != JSON_TYPE) return false
-        val content = jSerializer.get($$"$content").asArray ?: return true
-        var (parent, index) = model.adjustInsertion(tree.selectedNode())
-        tree.expandPath(TreePath(parent.path))
-        for (it in content) {
-            val item = it.asObject ?: continue
-            val node = ArgumentNode("")
-            if (node.deserialize(item, ArgumentsService.SERIALIZE_REVISION)) {
-                node.isExpanded = true
-                model.insert(node, parent, index++)
-                node.traverse<ArgumentNode> {
-                    if (node.isExpanded) {
-                        tree.expandPath(TreePath(node.path))
+    private fun pasteAsJson(reader: JsonObjectReader?, tree: ArgumentTree, model: ArgumentTreeModel): Boolean {
+        if (reader != null && reader.get($$"$type").asString == JSON_TYPE) {
+            reader.get($$"$content").asArray?.let { content ->
+                var (parent, index) = model.adjustInsertion(tree.selectedNode())
+                for (it in content) {
+                    it.asObject?.let { item ->
+                        val node = ArgumentNode("")
+                        if (node.deserialize(item, ArgumentsService.SERIALIZE_REVISION)) {
+                            node.isExpanded = true
+                            model.insert(node, parent, index++)
+                        }
+                    }
+                }
+                parent.isExpanded = true
+                parent.traverse<ArgumentTreeNodeBase> {
+                    if (it.isExpanded) {
+                        tree.expandPath(TreePath(it.path))
                         return@traverse true
                     }
                     return@traverse false
                 }
             }
+            return true
         }
-        return true
+        return false
     }
 
     private fun pasteAsPlainText(content: String, tree: ArgumentTree, model: ArgumentTreeModel) {
@@ -192,8 +225,50 @@ internal class CopyPasteProvider : CopyProvider, CutProvider, PasteProvider, Del
     }
 
     override fun canDeleteElement(dc: DataContext): Boolean {
-        return dc.withArgumentDataContext(false) {
-            it.treeSelectedContainers > 0 && !it.treeIsEditing 
+        return dc.withArgumentDataContext(false) { context ->
+            context.treeSelectedContainers > 0 && !context.treeIsEditing 
+        }
+    }
+
+    open class MyTransferable(val jObject: JsonObject) : Transferable {
+        companion object {
+            val INNER_FLAVOR = DataFlavor(
+                JsonObject::class.java,
+                "com.github.rebel000.cmdlineargs-copy"
+            )
+
+            val JSON_FLAVOR = DataFlavor("application/json;class=java.lang.String")
+
+            private val flavors = arrayOf(
+                INNER_FLAVOR,
+                JSON_FLAVOR,
+                DataFlavor.stringFlavor
+            )
+        }
+
+        override fun getTransferDataFlavors(): Array<DataFlavor?>? = flavors.clone()
+        override fun isDataFlavorSupported(flavor: DataFlavor): Boolean = flavors.any { it.equals(flavor) }
+
+        override fun getTransferData(flavor: DataFlavor): Any {
+            return when (flavor) {
+                INNER_FLAVOR -> jObject
+                JSON_FLAVOR -> jObject.toString()
+                DataFlavor.stringFlavor -> toPrettyString()
+                else -> throw UnsupportedFlavorException(flavor)
+            }
+        }
+
+        private fun toPrettyString(): String {
+            try {
+                return StringWriter().also {
+                    Streams.write(jObject, JsonWriter(it).apply {
+                        strictness = Strictness.LENIENT
+                        setIndent("    ")
+                    })
+                }.toString()
+            } catch (e: IOException) {
+                throw AssertionError(e)
+            }
         }
     }
 }
