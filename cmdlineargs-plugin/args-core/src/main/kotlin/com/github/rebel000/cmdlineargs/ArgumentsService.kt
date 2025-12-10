@@ -75,6 +75,21 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             }
         }
 
+    var showSharedArguments
+        get() = model.sharedRoot != null
+        set(value) {
+            val isSharedEnabled = model.sharedRoot != null
+            if (isSharedEnabled != value) {
+                globalStorage.showSharedNode = value
+                if (value) {
+                    reloadShared()
+                } else {
+                    saveShared()
+                    model.sharedRoot = null
+                }
+            }
+        }
+
     var showExperimental
         get() = getGlobalStorage().showExperimental
         set(value) {
@@ -326,7 +341,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 }
             }
         }
-        if (isSharedVisible) {
+        if (showSharedArguments) {
             reloadShared()
         }
         model.invalidate()
