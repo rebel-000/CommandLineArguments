@@ -12,6 +12,7 @@ import com.github.rebel000.cmdlineargs.tree.visitors.CollectArgsVisitor
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.compound.CompoundRunConfiguration
+import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.execution.multilaunch.MultiLaunchConfiguration
 import com.intellij.execution.multilaunch.execution.executables.impl.RunConfigurationExecutableManager
 import com.intellij.openapi.Disposable
@@ -406,39 +407,64 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         invalidatePreview()
     }
 
-    internal fun updatePreview() {
-        val runManager = RunManager.getInstanceIfCreated(project) ?: return
-        var allSettings = runManager.allSettings.filter { it.configuration !is CompoundRunConfiguration && it.configuration !is MultiLaunchConfiguration }
-        val activeConfigurations = when (val cfg = runManager.selectedConfiguration?.configuration) {
-            is CompoundRunConfiguration -> cfg.getConfigurationsWithEffectiveRunTargets().map { it.configuration }
-            is MultiLaunchConfiguration -> { cfg.descriptors.mapNotNull { (it.executable as? RunConfigurationExecutableManager.RunConfigurationExecutable)?.settings?.configuration }}
-            else -> listOf(cfg)
+    private fun flatConfigurations(config: RunConfiguration): List<RunConfiguration> {
+        return when (config) {
+            is CompoundRunConfiguration -> {
+                config
+                    .getConfigurationsWithEffectiveRunTargets()
+                    .flatMap {
+                        flatConfigurations(it.configuration)
+                    }
+            }
+
+            is MultiLaunchConfiguration -> {
+                config
+                    .descriptors
+                    .flatMap {
+                        (it.executable as? RunConfigurationExecutableManager.RunConfigurationExecutable)
+                            ?.settings
+                            ?.configuration
+                            ?.let { cfg -> flatConfigurations(cfg) }
+                            ?: emptyList()
+                    }
+            }
+
+            else -> listOf(config)
         }
-        if (!showExperimental || !showUnsupported) {
-            allSettings = allSettings.filter {
-                val adapter = getAdapter(it)
-                when {
-                    adapter == null -> showUnsupported
-                    adapter.isExperimental() -> showExperimental || showUnsupported
-                    else -> true
+    }
+
+    private fun updatePreview() {
+        synchronized(this) {
+            _isPreviewInvalid = false
+        }
+        var visibleNodes = 0
+        val runManager = RunManager.getInstanceIfCreated(project)
+        if (runManager != null) {
+            val activeConfigurations = runManager.selectedConfiguration?.configuration?.let { flatConfigurations(it).toSet() }.orEmpty()
+            runManager.allSettings.forEach { config ->
+                if (config.configuration !is CompoundRunConfiguration && config.configuration !is MultiLaunchConfiguration) {
+                    val adapter = getAdapter(config)
+                    if (adapter != null || showUnsupported) {
+                        val node = if (model.previewRoot.childCount > visibleNodes) {
+                            model.previewRoot.getChildAt(visibleNodes) as ConfigurationNode
+                        } else {
+                            ConfigurationNode("").also {
+                                model.rawInsert(it, model.previewRoot, model.previewRoot.childCount)
+                            }
+                        }
+                        node.configure(
+                            config = config,
+                            adapter = adapter,
+                            isActive = config.configuration in activeConfigurations,
+                            isGlobalEnabled = isEnabled
+                        )
+                        visibleNodes++
+                    }
                 }
             }
         }
-        if (model.previewRoot.childCount != allSettings.size) {
-            while (model.previewRoot.childCount < allSettings.size) {
-                model.rawInsert(ConfigurationNode(""), model.previewRoot, model.previewRoot.childCount)
-            }
-            while (model.previewRoot.childCount > allSettings.size) {
-                model.rawRemove(model.previewRoot.lastChild as ArgumentTreeNodeBase)
-            }
-        }
-        for (i in 0 until allSettings.size) {
-            val node = model.previewRoot.getChildAt(i) as ConfigurationNode
-            val config = allSettings[i]
-            val isActive = config.configuration in activeConfigurations
-            val adapter = getAdapter(config)?.takeIf { showExperimental || !it.isExperimental() }
-            if (!showUnsupported && adapter == null) continue 
-            node.configure(config, adapter, isActive, isEnabled)
+        while (model.previewRoot.childCount > visibleNodes) {
+            model.rawRemove(model.previewRoot.lastChild as ArgumentTreeNodeBase)
         }
         model.invalidate(model.previewRoot, true)
     }
