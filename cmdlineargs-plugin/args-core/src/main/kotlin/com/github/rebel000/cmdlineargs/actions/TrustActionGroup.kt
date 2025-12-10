@@ -53,7 +53,7 @@ internal class TrustActionGroup : DefaultActionGroup() {
             selected = state
             if (updatePreview) {
                 service.updatePreview()
-                service.updateCopyActions()
+                service.markDirty()
             }
         }
 
