@@ -41,6 +41,9 @@
             <separator />
             <reference ref="$Delete" />
             <separator />
+            <reference ref="cmdlineargs.move-up" />
+            <reference ref="cmdlineargs.move-down" />
+            <separator />
             <group id="cmdlineargs.toolwindow.popup.quick-params" class="com.github.rebel000.cmdlineargs.actions.QuickParametersActionGroup" searchable="false" />
             <group id="cmdlineargs.toolwindow.popup.filters" class="com.github.rebel000.cmdlineargs.actions.FiltersActionGroup" searchable="false" />
             <separator />
