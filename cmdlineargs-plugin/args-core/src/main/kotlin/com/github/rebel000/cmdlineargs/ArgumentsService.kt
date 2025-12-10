@@ -113,6 +113,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         model.addTreeModelListener(this)
         coroScope.launch { saveFlow.debounce(DEFERRED_SAVE_DELAY).collectLatest { save() } }
         ApplicationManager.getApplication().invokeLater {
+            reload()
             update()
             updateCopyActions()
         }
