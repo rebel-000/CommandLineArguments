@@ -35,17 +35,6 @@ internal class ArgumentTree(private val myModel: ArgumentTreeModel) : CheckboxTr
         }
     }
 
-    fun selectedNode(): ArgumentTreeNodeBase? = selectionPath?.lastPathComponent as? ArgumentTreeNodeBase
-
-    inline fun <reified T : ArgumentTreeNodeBase> selectedNodesNoRecursion(): List<T> {
-        val nodes = ArrayList<T>(selectionPaths.size)
-        forEachSelectedNodeNoRecursion<T> {
-            nodes.add(it)
-        }
-        nodes.trimToSize()
-        return nodes
-    }
-
     inline fun <reified T : ArgumentTreeNodeBase> forEachSelectedNodeNoRecursion(action: (T) -> Unit) {
         val selectionPaths = selectionPaths?.sortedBy { getRowForPath(it) } ?: return
         var lastPath: TreePath? = null
@@ -58,19 +47,16 @@ internal class ArgumentTree(private val myModel: ArgumentTreeModel) : CheckboxTr
         }
     }
 
-    inline fun <reified T : ArgumentTreeNodeBase> anySelectedNodeNoRecursion(predicate: (T) -> Boolean): Boolean {
-        val selectionPaths = selectionPaths?.sortedBy { getRowForPath(it) } ?: return false
-        var lastPath: TreePath? = null
-        for (path in selectionPaths) {
-            val node = path.lastPathComponent as? T ?: continue
-            if (lastPath?.isDescendant(path) == true) continue
-            lastPath = path
-            if (predicate(node)) {
-                return true
-            }
+    inline fun <reified T : ArgumentTreeNodeBase> selectedNodesNoRecursion(): List<T> {
+        val nodes = ArrayList<T>(selectionPaths.size)
+        forEachSelectedNodeNoRecursion<T> {
+            nodes.add(it)
         }
-        return false
+        nodes.trimToSize()
+        return nodes
     }
+
+    fun selectedNode(): ArgumentTreeNodeBase? = selectionPath?.lastPathComponent as? ArgumentTreeNodeBase
 
     override fun fireTreeCollapsed(path: TreePath) {
         super.fireTreeCollapsed(path)
