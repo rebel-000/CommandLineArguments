@@ -58,16 +58,6 @@ internal class ArgumentTreeModel() : TreeModel {
         }
     }
 
-    @Suppress("unused")
-    fun tryInsertBefore(node: ArgumentNode, before: ArgumentContainer?) {
-        val parent = before?.parent as? ArgumentContainer
-        if (parent != null) {
-            insert(node, parent, parent.getIndex(before))
-        } else {
-            add(node, before)
-        }
-    }
-
     fun insert(node: ArgumentNode, parent: ArgumentContainer, index: Int) {
         parent.insert(node, index)
         fireTreeNodesInserted(parent.path, intArrayOf(index), arrayOf(node))

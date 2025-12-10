@@ -124,7 +124,6 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
 
     private fun invalidate(sender: ArgumentNode?) {
         var newState: ThreeStateCheckBox.State = ThreeStateCheckBox.State.NOT_SELECTED
-
         when {
             isFolder && isSingle -> {
                 if (sender != null) {
@@ -160,7 +159,6 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
                 newState = ThreeStateCheckBox.State.SELECTED
             }
         }
-
         if (state != newState) {
             state = newState
             isChecked = state != ThreeStateCheckBox.State.NOT_SELECTED

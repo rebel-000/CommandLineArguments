@@ -2,7 +2,6 @@ package com.github.rebel000.cmdlineargs.tree
 
 import com.intellij.ui.util.height
 import com.intellij.ui.util.width
-import com.intellij.util.ui.JBUI
 import java.awt.Component
 import java.awt.event.FocusEvent
 import java.awt.event.MouseEvent

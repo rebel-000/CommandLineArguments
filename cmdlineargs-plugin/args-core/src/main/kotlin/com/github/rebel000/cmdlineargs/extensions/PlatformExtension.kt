@@ -6,8 +6,7 @@ import com.intellij.openapi.project.Project
 
 interface PlatformExtension {
     companion object {
-        val EP_NAME: ExtensionPointName<PlatformExtension> =
-            ExtensionPointName.create<PlatformExtension>("com.github.rebel000.cmdlineargs.extensions.platformExtension")
+        val EP_NAME: ExtensionPointName<PlatformExtension> = ExtensionPointName.create("com.github.rebel000.cmdlineargs.extensions.platformExtension")
     }
 
     fun isRider(): Boolean = false

@@ -8,10 +8,7 @@ import javax.swing.event.TreeModelListener
 import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
 
-internal class ArgumentDataContext() : 
-    // TreeExpansionListener, 
-    TreeModelListener,
-    TreeSelectionListener {
+internal class ArgumentDataContext : TreeModelListener, TreeSelectionListener {
     companion object {
         val KEY = DataKey.create<ArgumentDataContext>("CMDLINEARGS_DATA_CONTEXT")
     }
@@ -43,7 +40,6 @@ internal class ArgumentDataContext() :
     var treeSelectedCount: Int = 0
 
     fun install(service: ArgumentsService, tree: ArgumentTree) {
-        // tree.addTreeExpansionListener(this)
         tree.addTreeSelectionListener(this)
         service.model.addTreeModelListener(this)
         _service = service
@@ -51,15 +47,11 @@ internal class ArgumentDataContext() :
     }
     
     fun uninstall() {
-        // tree.removeTreeExpansionListener(this)
         tree.removeTreeSelectionListener(this)
         model.removeTreeModelListener(this)
         _service = null
         _tree = null
     }
-
-    // override fun treeExpanded(event: TreeExpansionEvent?) = Unit
-    // override fun treeCollapsed(event: TreeExpansionEvent?)  = Unit
 
     override fun treeNodesChanged(e: TreeModelEvent?) {
         if (treeSelectedExperimental == 0) {

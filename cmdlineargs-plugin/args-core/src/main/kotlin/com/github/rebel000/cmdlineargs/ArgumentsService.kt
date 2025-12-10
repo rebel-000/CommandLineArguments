@@ -1,11 +1,8 @@
 package com.github.rebel000.cmdlineargs
 
-import com.github.rebel000.cmdlineargs.actions.CopyCommandLineActionGroup
 import com.github.rebel000.cmdlineargs.extensions.ArgumentsAdapterProviderExtension
 import com.github.rebel000.cmdlineargs.extensions.PlatformExtension
-import com.github.rebel000.cmdlineargs.helpers.*
 import com.github.rebel000.cmdlineargs.resources.Messages
-import com.github.rebel000.cmdlineargs.serialization.ObjectReader
 import com.github.rebel000.cmdlineargs.serialization.json.JsonObjectReader
 import com.github.rebel000.cmdlineargs.serialization.json.JsonObjectWriter
 import com.github.rebel000.cmdlineargs.serialization.xml.XmlObjectReader
@@ -18,7 +15,6 @@ import com.intellij.execution.compound.CompoundRunConfiguration
 import com.intellij.execution.multilaunch.MultiLaunchConfiguration
 import com.intellij.execution.multilaunch.execution.executables.impl.RunConfigurationExecutableManager
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
@@ -57,6 +53,8 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         fun getInstanceIfCreated(project: Project?): ArgumentsService? = project?.serviceIfCreated()
     }
 
+    private var _isEnabled = true
+    private var _isPreviewInvalid = false
     private var _revision = -1
 
     private val adapters = mutableMapOf<String, ArgumentsAdapter>()
@@ -64,10 +62,9 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     private val projectStorage: ArgumentsProjectStorage.State get() = ArgumentsProjectStorage.getInstance(project).state
     private val saveFlow = MutableSharedFlow<Unit>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     private var stateFilePath: String? = locateStateFile()
-    private var _isEnabled = true
-    internal var copyArgsActions: Array<AnAction> = AnAction.EMPTY_ARRAY
+
     internal val model = ArgumentTreeModel()
-    internal val isSharedVisible get() = model.sharedRoot != null
+
     var isEnabled: Boolean
         get() = _isEnabled
         set(value) {
@@ -97,14 +94,14 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         get() = globalStorage.showExperimental
         set(value) {
             globalStorage.showExperimental = value
-            updatePreview()
+            invalidatePreview()
         }
 
     var showUnsupported
         get() = globalStorage.showUnsupported
         set(value) {
             globalStorage.showUnsupported = value
-            updatePreview()
+            invalidatePreview()
         }
 
     val revision: Int get() = _revision
@@ -115,7 +112,6 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         ApplicationManager.getApplication().invokeLater {
             reload()
             update()
-            updateCopyActions()
         }
     }
 
@@ -123,11 +119,11 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         save()
     }
 
-    fun isSupported(s: RunnerAndConfigurationSettings?): Boolean {
-        return s == null
-            || ArgumentsAdapterProviderExtension.EP_NAME.extensionList.any { it.isSupported(s) }
+    fun getAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
+        val adapter = adapters[s.getArgumentsAdapterKey()]
+        return adapter?.takeIf { it.settings === s && it.isVisible(showExperimental) }
     }
-    
+
     fun getArguments(s: RunnerAndConfigurationSettings): String {
         return getAdapter(s)?.getArguments() ?: ""
     }
@@ -152,42 +148,18 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         )
     }
 
-    internal fun toggleShared(enabled: Boolean) {
-        if (isSharedVisible != enabled) {
-            val globalState = getGlobalStorage()
-            globalState.showSharedNode = enabled
-            if (enabled) {
-                reloadShared()
-            } else {
-                saveShared()
-                model.sharedRoot = null
-            }
-        }
+    internal fun findAdapter(key: String): ArgumentsAdapter? {
+        return adapters[key]
     }
 
-    private fun onArgumentsChanged(nodes: List<ArgumentTreeNodeBase>) {
-        var shouldUpdate = false
-        for (node in nodes) {
-            when (node) {
-                is ArgumentContainer -> shouldUpdate = true
-                is ConfigurationNode -> node.key
-                    ?.let { adapters[it] }
-                    ?.let { adapter ->
-                        adapter.enabled = node.isChecked
-                        if (node.isChecked) {
-                            val visitor = CollectArgsVisitor(adapter.predicate())
-                            model.sharedRoot?.traverse(visitor)
-                            model.projectRoot.traverse(visitor)
-                            adapter.setArguments(visitor.toString())
-                        }
-                        updatePreview()
-                        saveFlow.tryEmit(Unit)
-                    }
+    internal fun invalidatePreview() {
+        synchronized(this) {
+            if (!_isPreviewInvalid) {
+                _isPreviewInvalid = true
+                ApplicationManager.getApplication().invokeLater {
+                    updatePreview()
+                }
             }
-        }
-        if (shouldUpdate) {
-            saveFlow.tryEmit(Unit)
-            update()
         }
     }
 
@@ -213,13 +185,13 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         }
     }
 
-    internal fun onProcessStarted(s: RunnerAndConfigurationSettings?) {
+    internal fun onProcessNotStarted(s: RunnerAndConfigurationSettings?) {
         if (isEnabled && s != null) {
             getAdapter(s)?.onCleanup()
         }
     }
 
-    internal fun onProcessNotStarted(s: RunnerAndConfigurationSettings?) {
+    internal fun onProcessStarted(s: RunnerAndConfigurationSettings?) {
         if (isEnabled && s != null) {
             getAdapter(s)?.onCleanup()
         }
@@ -269,30 +241,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
 
     @Suppress("unused")
     internal fun onRunConfigurationSelected(s: RunnerAndConfigurationSettings?) {
-        updatePreview()
-    }
-
-    private fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
-        return ArgumentsAdapterProviderExtension.EP_NAME.extensionList.firstNotNullOfOrNull {
-            it.createAdapter(s)
-        }
-    }
-
-    internal fun findAdapter(key: String): ArgumentsAdapter? {
-        return adapters[key]
-    }
-
-    fun getAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
-        val adapter = adapters[s.getArgumentsAdapterKey()]
-        return adapter?.takeIf { it.settings === s && it.isVisible(showExperimental) }
-    }
-
-    private fun getGlobalStorage(): ArgumentsGlobalStorage.State {
-        return ArgumentsGlobalStorage.getInstance().state
-    }
-
-    internal fun getProjectStorage(): ArgumentsProjectStorage.State {
-        return ArgumentsProjectStorage.getInstance(project).state
+        invalidatePreview()
     }
 
     internal fun reload() {
@@ -330,6 +279,31 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             reloadShared()
         }
         model.invalidate()
+    }
+
+    private fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
+        return ArgumentsAdapterProviderExtension.EP_NAME.extensionList.firstNotNullOfOrNull {
+            it.createAdapter(s)
+        }
+    }
+
+    private fun locateStateFile(): String? {
+        val basePath = project.basePath!!
+        if (PlatformExtension.EP_NAME.extensions.any { it.isRider() }) {
+            val riderConfig = Path(basePath).resolve(project.name + ".cmdlineargs.json")
+            Path(basePath).resolve(project.name + ".ddargs.json").takeIf { it.exists() }
+                ?.let {
+                    it.copy(riderConfig)
+                    it.move(it.parent.resolve("${it.name}.json.bak"))
+                }
+            return riderConfig.toString()
+        }
+        val workspaceDir = project.workspaceFile?.parent ?: project.projectFile?.parent
+        val rootConfig = Path(basePath).resolve(".cmdlineargs.json")
+        if (rootConfig.exists() || workspaceDir == null) {
+            return rootConfig.toString()
+        }
+        return null
     }
 
     private fun reloadShared() {
@@ -384,25 +358,6 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         }
     }
 
-    private fun locateStateFile(): String? {
-        val basePath = project.basePath!!
-        if (PlatformExtension.EP_NAME.extensions.any { it.isRider() }) {
-            val riderConfig = Path(basePath).resolve(project.name + ".cmdlineargs.json")
-            Path(basePath).resolve(project.name + ".ddargs.json").takeIf { it.exists() }
-                ?.let {
-                    it.copy(riderConfig)
-                    it.move(it.parent.resolve("${it.name}.json.bak"))
-                }
-            return riderConfig.toString()
-        }
-        val workspaceDir = project.workspaceFile?.parent ?: project.projectFile?.parent
-        val rootConfig = Path(basePath).resolve(".cmdlineargs.json")
-        if (rootConfig.exists() || workspaceDir == null) {
-            return rootConfig.toString()
-        }
-        return null
-    }
-
     private fun update() {
         if (isEnabled) {
             val visitors = adapters.map { 
@@ -448,20 +403,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 }
             }
         }
-        ApplicationManager.getApplication().invokeLater {
-            updatePreview()
-        }
-    }
-
-    internal fun updateCopyActions() {
-        val allSettings = RunManager.getInstanceIfCreated(project)?.allSettings.orEmpty()
-        copyArgsActions = allSettings.mapNotNull {
-            if (getAdapter(it)?.isTrusted() == true) {
-                CopyCommandLineActionGroup.Action(it)
-            } else {
-                null
-            }
-        }.toTypedArray()
+        invalidatePreview()
     }
 
     internal fun updatePreview() {
@@ -499,6 +441,32 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             node.configure(config, adapter, isActive, isEnabled)
         }
         model.invalidate(model.previewRoot, true)
+    }
+
+    private fun onArgumentsChanged(nodes: List<ArgumentTreeNodeBase>) {
+        var shouldUpdate = false
+        for (node in nodes) {
+            when (node) {
+                is ArgumentContainer -> shouldUpdate = true
+                is ConfigurationNode -> node.key
+                    ?.let { adapters[it] }
+                    ?.let { adapter ->
+                        adapter.enabled = node.isChecked
+                        if (node.isChecked) {
+                            val visitor = CollectArgsVisitor(adapter.predicate())
+                            model.sharedRoot?.traverse(visitor)
+                            model.projectRoot.traverse(visitor)
+                            adapter.setArguments(visitor.toString())
+                        }
+                        invalidatePreview()
+                        saveFlow.tryEmit(Unit)
+                    }
+            }
+        }
+        if (shouldUpdate) {
+            saveFlow.tryEmit(Unit)
+            update()
+        }
     }
 
     override fun treeNodesChanged(e: TreeModelEvent?) {

@@ -6,8 +6,8 @@ import com.github.rebel000.cmdlineargs.actions.RenameNextAction
 import com.github.rebel000.cmdlineargs.actions.RenamePrevAction
 import com.github.rebel000.cmdlineargs.tree.ArgumentTree
 import com.github.rebel000.cmdlineargs.tree.ArgumentTreeDnDSupport
-import com.intellij.ide.CommonActionsManager
-import com.intellij.ide.DefaultTreeExpander
+import com.github.rebel000.cmdlineargs.tree.ArgumentTreeNodeBase
+import com.github.rebel000.cmdlineargs.tree.traverse
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.project.Project
@@ -30,6 +30,11 @@ internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowP
         context.install(service, tree)
         installActions()
         service.model.addTreeModelListener(this)
+    }
+
+    override fun dispose() {
+        ArgumentsService.getInstance(project).model.removeTreeModelListener(this)
+        context.uninstall()
     }
 
     fun getTitleActions(): List<AnAction> {
@@ -57,11 +62,6 @@ internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowP
             }
             return@traverse false
         }
-    }
-
-    override fun dispose() {
-        ArgumentsService.getInstance(project).model.removeTreeModelListener(this)
-        context.uninstall()
     }
 
     override fun uiDataSnapshot(sink: DataSink) {

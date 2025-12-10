@@ -1,6 +1,5 @@
 package com.github.rebel000.cmdlineargs.actions
 
-import com.github.rebel000.cmdlineargs.ArgumentsService
 import com.github.rebel000.cmdlineargs.ui.SharedWarningDialog
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent

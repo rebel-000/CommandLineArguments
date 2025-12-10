@@ -14,14 +14,15 @@ import com.jetbrains.rider.run.configurations.exe.ExeConfigurationParameters
 @Suppress("unused")
 class CppConfigurationParametersExtension(private val project: Project) : CppConfigurationParametersExtension, Disposable {
     override fun process(parameters: ExeConfigurationParameters) {
-        val argsService = ArgumentsService.getInstance(project)
-        if (argsService.isEnabled) {
+        val service = ArgumentsService.getInstance(project)
+        if (service.isEnabled) {
             val runManager = RunManager.getInstance(project)
             val configNameFromEnv = parameters.envs[CppProjectConfigurationAdapter.ENV_NAME]
             if (configNameFromEnv != null) {
                 val config = runManager.findConfigurationByTypeAndName(CppProjectConfigurationType.RUN_CONFIG_ID, configNameFromEnv)
                 if (config != null) {
-                    parameters.programParameters += " ${argsService.getArguments(config)}"
+                    val delim = if (parameters.programParameters.isNotEmpty()) " " else ""
+                    parameters.programParameters += "${delim}${service.getArguments(config)}"
                 } else {
                     project.thisLogger().error("[com.github.rebel000.cmdlineargs] Configuration '$configNameFromEnv' not found")
                 }
@@ -29,7 +30,8 @@ class CppConfigurationParametersExtension(private val project: Project) : CppCon
             } else {
                 val config = runManager.selectedConfiguration
                 if (config != null && config.configuration is CppProjectConfiguration) {
-                    parameters.programParameters += " ${argsService.getArguments(config)}"
+                    val delim = if (parameters.programParameters.isNotEmpty()) " " else ""
+                    parameters.programParameters += "${delim}${service.getArguments(config)}"
                 } else {
                     project.thisLogger().error("[com.github.rebel000.cmdlineargs] Failed to determine run configuration")
                 }

@@ -7,8 +7,6 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.project.Project
 
 internal class MyExecutionListener(private val project: Project) : ExecutionListener {
-//    override fun processStartScheduled(executorId: String, env: ExecutionEnvironment)
-
     override fun processStarting(executorId: String, env: ExecutionEnvironment) {
         ArgumentsService.getInstance(project).onProcessStarting(env.runnerAndConfigurationSettings)
     }
@@ -20,6 +18,4 @@ internal class MyExecutionListener(private val project: Project) : ExecutionList
     override fun processStarted(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
         ArgumentsService.getInstance(project).onProcessStarted(env.runnerAndConfigurationSettings)
     }
-
-//    override fun processTerminating(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler)
 }
