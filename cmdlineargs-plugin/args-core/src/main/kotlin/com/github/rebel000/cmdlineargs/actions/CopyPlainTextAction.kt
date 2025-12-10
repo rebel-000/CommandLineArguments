@@ -9,7 +9,7 @@ import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.DumbAwareAction
 import java.awt.datatransfer.StringSelection
 
-internal class CopyAsPlainTextAction : DumbAwareAction(), TreeAction {
+internal class CopyPlainTextAction : DumbAwareAction(), TreeAction {
     override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext {
         val visitor = CollectCopyVisitor()
         tree.forEachSelectedNodeNoRecursion<ArgumentContainer> {

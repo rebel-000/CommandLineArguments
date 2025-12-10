@@ -4,7 +4,7 @@
     </extensions>
     <actions resource-bundle="messages.CommandlineArgsActionsBundle">
         <action id="cmdlineargs.collapse-all" class="com.github.rebel000.cmdlineargs.actions.CollapseAllAction" icon="AllIcons.Actions.Collapseall" use-shortcut-of="CollapseRegion" />
-        <action id="cmdlineargs.copy-as-plain" class="com.github.rebel000.cmdlineargs.actions.CopyAsPlainTextAction" use-shortcut-of="CopyAsPlainText" />
+        <action id="cmdlineargs.copy-as-plain" class="com.github.rebel000.cmdlineargs.actions.CopyPlainTextAction" use-shortcut-of="CopyAsPlainText" />
         <action id="cmdlineargs.disable" class="com.github.rebel000.cmdlineargs.actions.DisableAction" icon="AllIcons.Actions.Pause"/>
         <action id="cmdlineargs.edit" class="com.github.rebel000.cmdlineargs.actions.EditAction" icon="AllIcons.Actions.Edit" use-shortcut-of="ShowIntentionActions" />
         <action id="cmdlineargs.expand-selected" class="com.github.rebel000.cmdlineargs.actions.ExpandSelectedAction" icon="AllIcons.Actions.Expandall" use-shortcut-of="ExpandRegion" />
