@@ -31,10 +31,9 @@ internal open class ConfigurationNode(text: String, icon: Icon? = null, style: S
             isTrusted = adapter.isTrusted()
             isChecked = adapter.enabled
             icon = when {
-                isExperimental -> AllIcons.General.ShowWarning
+                !isTrusted -> AllIcons.General.ShowWarning
                 !isGlobalEnabled || !adapter.enabled -> AllIcons.Actions.Pause
-                isActive -> AllIcons.Actions.Execute
-                else -> AllIcons.Toolwindows.ToolWindowRun
+                else -> config.type.icon
             }
             key = adapter.key
             style = when {
