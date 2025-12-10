@@ -42,7 +42,7 @@ internal class TrustActionGroup : DefaultActionGroup() {
                 }
             }
             if (updatePreview) {
-                service.updatePreview()
+                service.invalidatePreview()
                 service.markDirty()
             }
         }
