@@ -10,8 +10,10 @@ import java.lang.ref.WeakReference
 abstract class ArgumentsAdapter(settings: RunnerAndConfigurationSettings) {
     companion object {
         fun runConfigurationPredicate(name: String): ((ArgumentNode) -> Boolean) {
-            return { it: ArgumentNode ->
-                it.filters["runConfiguration"]?.any{ name.matchesWildcard(it) } ?: true
+            return { node: ArgumentNode ->
+                node.filters["runConfiguration"]
+                    .orEmpty()
+                    .let { filter -> filter.isEmpty() || filter.any{ name.matchesWildcard(it) } }
             }
         }
     }
