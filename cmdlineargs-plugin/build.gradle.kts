@@ -156,6 +156,10 @@ intellijPlatformTesting {
         runPluginWithIdeTask(IntelliJPlatformType.IntellijIdeaUltimate) {
             plugins {
                 compatiblePlugins("org.toml.lang", "PythonCore")
+                if (tryGetPluginProperty("minimal-build-environment")?.toBoolean() == true) {
+                    compatiblePlugins("com.intellij.clion", "com.intellij.cmake", "com.intellij.nativeDebug", "name.kropp.intellij.makefile", "org.jetbrains.plugins.clion.radler")
+                    compatiblePlugins("com.jetbrains.rust")
+                }
             }
         }
         runPluginWithIdeTask(IntelliJPlatformType.CLion)
