@@ -14,7 +14,13 @@
 
 - State file renamed from <solution>.ddargs.json to <solution>.cmdlineargs.json for Rider
 
-## 2.1.3 - 2025-08-15
+## 2.1.5 - 2025-11-12
+
+### Changed
+
+- Rider 2025.3 support
+
+## 2.1.4 - 2025-08-15
 
 ### Changed
 

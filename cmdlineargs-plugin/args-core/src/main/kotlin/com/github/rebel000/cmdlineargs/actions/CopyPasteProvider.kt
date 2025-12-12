@@ -16,7 +16,6 @@ import com.intellij.ide.PasteProvider
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.ide.CopyPasteManager
-import org.jetbrains.kotlin.idea.refactoring.project
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.awt.datatransfer.Transferable
@@ -79,7 +78,6 @@ internal class CopyPasteProvider : CopyProvider, CutProvider, PasteProvider, Del
             }
         } else {
             val values = ArrayList<String>()
-            val service = ArgumentsService.getInstance(dc.project)
             tree.forEachSelectedNodeNoRecursion<ConfigurationNode> { node ->
                 node.key?.let { key ->
                     service.findAdapter(key)?.getArguments()?.let { value ->

@@ -1,5 +1,5 @@
 <idea-plugin>
     <depends optional="true" config-file="ext-clion.xml">com.intellij.clion</depends>
     <depends optional="true" config-file="ext-clion-makefile.xml">com.intellij.clion-makefile</depends>
-    <depends optional="true" config-file="ext-clion-makefile.xml">name.kropp.intellij.makefile</depends>
+    <depends optional="true" config-file="ext-kropp-makefile.xml">name.kropp.intellij.makefile</depends>
 </idea-plugin>
