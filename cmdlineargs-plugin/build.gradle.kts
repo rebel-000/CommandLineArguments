@@ -4,6 +4,7 @@ import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.extensions.IntelliJPlatformTestingExtension
 import org.jetbrains.intellij.platform.gradle.models.ProductRelease.Channel
 import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
+import org.jetbrains.intellij.platform.gradle.toIntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.utils.extensionProvider
 
 plugins {
@@ -91,17 +92,27 @@ intellijPlatform {
 
     pluginVerification {
         ides {
-            select {
-                channels = listOf(Channel.RELEASE, Channel.EAP, Channel.RC)
-                types.convention(listOf(
-                    IntelliJPlatformType.IntellijIdeaUltimate,
-                    IntelliJPlatformType.CLion,
-                    IntelliJPlatformType.PyCharmProfessional,
-                    IntelliJPlatformType.Rider,
-                    IntelliJPlatformType.RustRover
-                ))
-                sinceBuild = ppString("sinceBuild")
-                untilBuild = ppString("untilBuild")
+            if (tryGetPluginProperty("minimal-build-environment")?.toBoolean() == true) {
+                val ideType = providers
+                    .environmentVariable("VERIFY_PLUGIN_IDE")
+                    .getOrElse(ppString("platform.type"))
+                    .toIntelliJPlatformType()
+                create(ideType, ppString("platform.version")) {
+                    useInstaller = false
+                }
+            } else {
+                select {
+                    channels = listOf(Channel.RELEASE, Channel.EAP, Channel.RC)
+                    types.convention(listOf(
+                        IntelliJPlatformType.IntellijIdeaUltimate,
+                        IntelliJPlatformType.CLion,
+                        IntelliJPlatformType.PyCharmProfessional,
+                        IntelliJPlatformType.Rider,
+                        IntelliJPlatformType.RustRover
+                    ))
+                    sinceBuild = ppString("sinceBuild")
+                    untilBuild = ppString("untilBuild")
+                }
             }
         }
     }
