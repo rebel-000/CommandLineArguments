@@ -3,7 +3,7 @@
 Command-Line Arguments
 ===
 
-![Build](https://github.com/rebel-000/CommandlineArgumentsWCheckboxes/workflows/Build/badge.svg)
+![Build](https://github.com/rebel-000/CommandLineArguments/workflows/Build/badge.svg)
 [![Version](https://img.shields.io/jetbrains/plugin/v/21226.svg)](https://plugins.jetbrains.com/plugin/21226)
 [![Downloads](https://img.shields.io/jetbrains/plugin/d/21226.svg)](https://plugins.jetbrains.com/plugin/21226)
 
@@ -26,8 +26,8 @@ Open the window via:
   
 - Manually:
 
-  Download the [latest release](https://github.com/rebel-000/CommandlineArgumentsWCheckboxes/releases/latest) and install it manually using
-  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
+  Download the [latest release](https://github.com/rebel-000/CommandLineArguments/releases/latest) and install it manually using
+  <kbd>Settings/Preferences</kbd> - <kbd>Plugins</kbd> - <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
 
 ---

@@ -6,7 +6,6 @@
 
 ### Added
 
-- 2025.3 support
 - Run configuration arguments preview
 - CLion, Java/Kotlin, Python, Rust support
 
