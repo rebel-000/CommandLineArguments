@@ -94,7 +94,7 @@ intellijPlatform {
         ides {
             if (tryGetPluginProperty("minimal-build-environment")?.toBoolean() == true) {
                 val ideType = providers
-                    .environmentVariable("VERIFY_PLUGIN_IDE")
+                    .environmentVariable("PLUGIN_VERIFY_IDE")
                     .getOrElse(ppString("platform.type"))
                     .toIntelliJPlatformType()
                 create(ideType, ppString("platform.version")) {

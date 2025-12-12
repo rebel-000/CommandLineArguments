@@ -154,7 +154,7 @@ jobs:
 
       - name: Run Plugin Verification tasks
         env:
-          VERIFY_PLUGIN_IDE: IU
+          PLUGIN_VERIFY_IDE: IU
 
         run: ./gradlew :cmdlineargs-plugin:verifyPlugin
 
@@ -162,7 +162,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: pluginVerifier-result
+          name: pluginVerifier-IU-result
           path: ${{ github.workspace }}/build/cmdlineargs-plugin/reports/pluginVerifier
 
   verify_CL:
@@ -192,7 +192,7 @@ jobs:
 
       - name: Run Plugin Verification tasks
         env:
-          VERIFY_PLUGIN_IDE: CL
+          PLUGIN_VERIFY_IDE: CL
 
         run: ./gradlew :cmdlineargs-plugin:verifyPlugin
 
@@ -200,7 +200,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: pluginVerifier-result
+          name: pluginVerifier-CL-result
           path: ${{ github.workspace }}/build/cmdlineargs-plugin/reports/pluginVerifier
 
   verify_PY:
@@ -230,7 +230,7 @@ jobs:
 
       - name: Run Plugin Verification tasks
         env:
-          VERIFY_PLUGIN_IDE: PY
+          PLUGIN_VERIFY_IDE: PY
 
         run: ./gradlew :cmdlineargs-plugin:verifyPlugin
 
@@ -238,7 +238,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: pluginVerifier-result
+          name: pluginVerifier-PY-result
           path: ${{ github.workspace }}/build/cmdlineargs-plugin/reports/pluginVerifier
 
   verify_RR:
@@ -268,7 +268,7 @@ jobs:
 
       - name: Run Plugin Verification tasks
         env:
-          VERIFY_PLUGIN_IDE: RR
+          PLUGIN_VERIFY_IDE: RR
 
         run: ./gradlew :cmdlineargs-plugin:verifyPlugin
 
@@ -276,7 +276,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: pluginVerifier-result
+          name: pluginVerifier-RR-result
           path: ${{ github.workspace }}/build/cmdlineargs-plugin/reports/pluginVerifier
 
   verify_RD:
@@ -306,7 +306,7 @@ jobs:
 
       - name: Run Plugin Verification tasks
         env:
-          VERIFY_PLUGIN_IDE: RD
+          PLUGIN_VERIFY_IDE: RD
 
         run: ./gradlew :cmdlineargs-plugin:verifyPlugin
 
@@ -314,7 +314,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: pluginVerifier-result
+          name: pluginVerifier-RD-result
           path: ${{ github.workspace }}/build/cmdlineargs-plugin/reports/pluginVerifier
 
   releaseDraft:
