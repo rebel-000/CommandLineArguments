@@ -6,6 +6,16 @@
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+## 3.0.0-eap.1 - 2025-12-12
+
+### Added
+
 - Run configuration arguments preview
 - CLion, Java/Kotlin, Python, Rust support
 
