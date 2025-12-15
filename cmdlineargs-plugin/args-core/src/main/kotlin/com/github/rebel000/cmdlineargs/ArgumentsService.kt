@@ -23,7 +23,6 @@ import com.intellij.openapi.components.serviceIfCreated
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.util.io.copy
-import com.intellij.util.io.move
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.BufferOverflow
@@ -39,7 +38,6 @@ import javax.swing.event.TreeModelEvent
 import javax.swing.event.TreeModelListener
 import kotlin.io.path.Path
 import kotlin.io.path.exists
-import kotlin.io.path.name
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -72,7 +70,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             if (_isEnabled != value) {
                 _isEnabled = value
                 saveFlow.tryEmit(Unit)
-                update()
+                rebuildArguments()
             }
         }
 
@@ -112,7 +110,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         coroScope.launch { saveFlow.debounce(DEFERRED_SAVE_DELAY).collectLatest { save() } }
         ApplicationManager.getApplication().invokeLater {
             reload()
-            update()
+            rebuildArguments()
         }
     }
 
@@ -210,7 +208,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             adapters[key] = adapter
             markDirty()
         }
-        update()
+        rebuildArguments()
     }
 
     internal fun onRunConfigurationChanged(s: RunnerAndConfigurationSettings, existingId: String?) {
@@ -228,7 +226,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             }
             markDirty()
         }
-        update()
+        rebuildArguments()
     }
 
     internal fun onRunConfigurationRemoved(s: RunnerAndConfigurationSettings) {
@@ -237,7 +235,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             adapters.remove(key)
             projectStorage.enabledConfigs.remove(key)
         }
-        update()
+        rebuildArguments()
     }
 
     @Suppress("unused")
@@ -359,7 +357,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         }
     }
 
-    private fun update() {
+    private fun rebuildArguments() {
         if (isEnabled) {
             val visitors = adapters.mapNotNull {
                 if (it.value.enabled) {
@@ -480,10 +478,10 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     private fun onArgumentsChanged(nodes: List<ArgumentTreeNodeBase>) {
-        var shouldUpdate = false
+        var shouldRebuild = false
         for (node in nodes) {
             when (node) {
-                is ArgumentContainer -> shouldUpdate = true
+                is ArgumentContainer -> shouldRebuild = true
                 is ConfigurationNode -> node.key
                     ?.let { adapters[it] }
                     ?.let { adapter ->
@@ -499,9 +497,9 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                     }
             }
         }
-        if (shouldUpdate) {
+        if (shouldRebuild) {
             saveFlow.tryEmit(Unit)
-            update()
+            rebuildArguments()
         }
     }
 
