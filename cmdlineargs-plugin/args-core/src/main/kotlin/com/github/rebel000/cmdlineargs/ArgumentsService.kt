@@ -361,9 +361,13 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
 
     private fun update() {
         if (isEnabled) {
-            val visitors = adapters.map { 
-                object : CollectArgsVisitor(it.value.predicate()) {
-                    val adapter = it.value
+            val visitors = adapters.mapNotNull {
+                if (it.value.enabled) {
+                    object : CollectArgsVisitor(it.value.predicate()) {
+                        val adapter = it.value
+                    }
+                } else {
+                    null
                 }
             }
             val multiVisitor = object : TraverseVisitor<ArgumentNode> {
