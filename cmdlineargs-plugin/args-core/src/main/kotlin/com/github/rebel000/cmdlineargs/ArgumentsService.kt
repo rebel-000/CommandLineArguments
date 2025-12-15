@@ -411,30 +411,37 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         invalidatePreview()
     }
 
-    private fun flatConfigurations(config: RunConfiguration): List<RunConfiguration> {
-        return when (config) {
-            is CompoundRunConfiguration -> {
-                config
-                    .getConfigurationsWithEffectiveRunTargets()
-                    .flatMap {
-                        flatConfigurations(it.configuration)
-                    }
+    private fun collectRunConfigurations(config: RunConfiguration?): Set<RunConfiguration> {
+        val toProcess = ArrayDeque<RunConfiguration>()
+        val toSkip = mutableSetOf<RunConfiguration>()
+        val toReturn = mutableSetOf<RunConfiguration>()
+        config?.let { toProcess.add(it) }
+        while (toProcess.isNotEmpty()) {
+            val config = toProcess.pop()
+            if (config in toSkip) {
+                continue
             }
-
-            is MultiLaunchConfiguration -> {
-                config
-                    .descriptors
-                    .flatMap {
-                        (it.executable as? RunConfigurationExecutableManager.RunConfigurationExecutable)
-                            ?.settings
-                            ?.configuration
-                            ?.let { cfg -> flatConfigurations(cfg) }
-                            ?: emptyList()
-                    }
+            toSkip.add(config)
+            when (config) {
+                is CompoundRunConfiguration -> {
+                    config
+                        .getConfigurationsWithEffectiveRunTargets()
+                        .forEach { toProcess.add(it.configuration) }
+                }
+                is MultiLaunchConfiguration -> {
+                    config
+                        .descriptors
+                        .forEach {
+                            (it.executable as? RunConfigurationExecutableManager.RunConfigurationExecutable)
+                                ?.let { executable -> toProcess.add(executable.settings.configuration) }
+                        }
+                }
+                else -> {
+                    toReturn.add(config)
+                }
             }
-
-            else -> listOf(config)
         }
+        return toReturn
     }
 
     private fun rebuildPreview() {
@@ -442,9 +449,8 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             _isPreviewInvalid = false
         }
         var visibleNodes = 0
-        val runManager = RunManager.getInstanceIfCreated(project)
-        if (runManager != null) {
-            val activeConfigurations = runManager.selectedConfiguration?.configuration?.let { flatConfigurations(it).toSet() }.orEmpty()
+        RunManager.getInstanceIfCreated(project)?.let { runManager ->
+            val activeConfigurations = collectRunConfigurations(runManager.selectedConfiguration?.configuration)
             runManager.allSettings.forEach { config ->
                 if (config.configuration !is CompoundRunConfiguration && config.configuration !is MultiLaunchConfiguration) {
                     val adapter = getAdapter(config)
