@@ -158,7 +158,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             if (!_isPreviewInvalid) {
                 _isPreviewInvalid = true
                 ApplicationManager.getApplication().invokeLater {
-                    updatePreview()
+                    rebuildPreview()
                 }
             }
         }
@@ -437,7 +437,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         }
     }
 
-    private fun updatePreview() {
+    private fun rebuildPreview() {
         synchronized(this) {
             _isPreviewInvalid = false
         }
