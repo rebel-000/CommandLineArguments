@@ -292,11 +292,11 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         val basePath = project.basePath!!
         if (PlatformExtension.EP_NAME.extensions.any { it.isRider() }) {
             val riderConfig = Path(basePath).resolve(project.name + ".cmdlineargs.json")
-            Path(basePath).resolve(project.name + ".ddargs.json").takeIf { it.exists() }
-                ?.let {
-                    it.copy(riderConfig)
-                    it.move(it.parent.resolve("${it.name}.json.bak"))
+            Path(basePath).resolve(project.name + ".ddargs.json").let { oldConfig ->
+                if (!riderConfig.exists() && oldConfig.exists()) {
+                    oldConfig.copy(riderConfig)
                 }
+            }
             return riderConfig.toString()
         }
         val workspaceDir = project.workspaceFile?.parent ?: project.projectFile?.parent
