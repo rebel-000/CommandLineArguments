@@ -39,7 +39,6 @@ internal class MoveUpAction : DumbAwareAction(), TreeAction {
         }
         val newSelectionPaths = ArrayList<TreePath>(selectedNodes.count())
         for (node in selectedNodes) {
-            val wasExpanded = tree.isExpanded(TreePath(node.path))
             model.remove(node)
             model.insert(node, parent, index)
             if (parent is ArgumentNode && parent.isSingle) {
@@ -47,7 +46,7 @@ internal class MoveUpAction : DumbAwareAction(), TreeAction {
             }
             val path = TreePath(node.path)
             newSelectionPaths.add(path)
-            if (wasExpanded) {
+            if (node.isExpanded) {
                 tree.expandPath(path)
             }
             index++

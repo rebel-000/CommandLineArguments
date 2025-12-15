@@ -7,15 +7,14 @@ import com.github.rebel000.cmdlineargs.actions.RenamePrevAction
 import com.github.rebel000.cmdlineargs.tree.ArgumentTree
 import com.github.rebel000.cmdlineargs.tree.ArgumentTreeDnDSupport
 import com.github.rebel000.cmdlineargs.tree.ArgumentTreeNodeBase
-import com.github.rebel000.cmdlineargs.tree.traverse
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.ui.ScrollPaneFactory
 import javax.swing.event.TreeModelEvent
 import javax.swing.event.TreeModelListener
-import javax.swing.tree.TreePath
 
 internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowPanel(true), TreeModelListener, Disposable {
     private val context = ArgumentDataContext()
@@ -56,12 +55,10 @@ internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowP
     }
 
     private fun restoreExpand() {
-        context.model.root.traverse<ArgumentTreeNodeBase> {
-            if (it.isExpanded) {
-                tree.expandPath(TreePath(it.path))
-                return@traverse true
+        ApplicationManager.getApplication().invokeLater {
+            tree.expandByPredicate {
+                (it.lastPathComponent as? ArgumentTreeNodeBase)?.isExpanded == true
             }
-            return@traverse false
         }
     }
 

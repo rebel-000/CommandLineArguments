@@ -7,6 +7,7 @@ import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.icons.AllIcons
 import com.intellij.ui.SimpleTextAttributes
 import javax.swing.Icon
+import kotlin.text.take
 
 internal open class ConfigurationNode(text: String, icon: Icon? = null, style: SimpleTextAttributes? = null) : ArgumentTreeNodeBase(text) {
     var key: String? = null
@@ -40,12 +41,13 @@ internal open class ConfigurationNode(text: String, icon: Icon? = null, style: S
                 isActive -> SUCCESS_TEXT_ATTRIBUTES
                 else -> null
             }
-            text = "${config.getArgumentsAdapterName()}: ${adapter.getArguments()}"
+            val arguments = adapter.getArguments()
+            text = "${config.getArgumentsAdapterName()}: ${arguments.trimTo(256)}"
             if (isExperimental) {
                 text = "*$text"
                 tooltip = Messages.message("tooltip.untrusted")
             } else {
-                tooltip = null
+                tooltip = arguments.trimTo(1152)
             }
         } else {
             isEnabled = false
@@ -58,6 +60,14 @@ internal open class ConfigurationNode(text: String, icon: Icon? = null, style: S
             }
             text = "[${config.type.displayName}] ${config.name}: ${Messages.message("toolwindow.notSupportedNode")}"
             tooltip = null
+        }
+    }
+    
+    private fun String.trimTo(len: Int): String {
+        return if (length > len) {
+            "${take(len)}..."
+        } else {
+            this
         }
     }
 

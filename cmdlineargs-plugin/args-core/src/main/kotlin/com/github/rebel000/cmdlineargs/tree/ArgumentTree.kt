@@ -1,6 +1,8 @@
 package com.github.rebel000.cmdlineargs.tree
 
 import com.intellij.ui.CheckboxTree
+import com.intellij.ui.tree.TreeVisitor
+import com.intellij.util.ui.tree.TreeUtil
 import java.awt.Point
 import java.awt.event.MouseEvent
 import javax.swing.event.CellEditorListener
@@ -26,13 +28,6 @@ internal class ArgumentTree(private val myModel: ArgumentTreeModel) : CheckboxTr
         isEditable = true
         model = myModel
         showsRootHandles = true
-        myModel.root.traverse<ArgumentTreeNodeBase> {
-            if (it.isExpanded) {
-                expandPath(TreePath(it.path))
-                return@traverse true
-            }
-            return@traverse false
-        }
     }
 
     inline fun <reified T : ArgumentTreeNodeBase> forEachSelectedNodeNoRecursion(action: (T) -> Unit) {
@@ -54,6 +49,16 @@ internal class ArgumentTree(private val myModel: ArgumentTreeModel) : CheckboxTr
         }
         nodes.trimToSize()
         return nodes
+    }
+
+    inline fun expandByPredicate(crossinline predicate: (TreePath) -> Boolean) {
+        TreeUtil.promiseMakeVisible(this) { path ->
+            if (predicate(path)) {
+                TreeVisitor.Action.CONTINUE
+            } else {
+                TreeVisitor.Action.SKIP_CHILDREN
+            }
+        }
     }
 
     fun selectedNode(): ArgumentTreeNodeBase? = selectionPath?.lastPathComponent as? ArgumentTreeNodeBase

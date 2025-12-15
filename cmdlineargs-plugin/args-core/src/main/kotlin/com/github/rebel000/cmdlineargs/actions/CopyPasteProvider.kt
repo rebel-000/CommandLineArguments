@@ -6,9 +6,6 @@ import com.github.rebel000.cmdlineargs.serialization.json.JsonObjectWriter
 import com.github.rebel000.cmdlineargs.tree.*
 import com.github.rebel000.cmdlineargs.ui.withArgumentDataContext
 import com.google.gson.JsonObject
-import com.google.gson.Strictness
-import com.google.gson.internal.Streams
-import com.google.gson.stream.JsonWriter
 import com.intellij.ide.CopyProvider
 import com.intellij.ide.CutProvider
 import com.intellij.ide.DeleteProvider
@@ -20,8 +17,6 @@ import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.awt.datatransfer.Transferable
 import java.awt.datatransfer.UnsupportedFlavorException
-import java.io.IOException
-import java.io.StringWriter
 import java.util.*
 import javax.swing.tree.TreePath
 import kotlin.math.max
@@ -149,18 +144,14 @@ internal class CopyPasteProvider : CopyProvider, CutProvider, PasteProvider, Del
                     it.asObject?.let { item ->
                         val node = ArgumentNode("")
                         if (node.deserialize(item, ArgumentsService.SERIALIZE_REVISION)) {
-                            node.isExpanded = true
                             model.insert(node, parent, index++)
                         }
                     }
                 }
-                parent.isExpanded = true
-                parent.traverse<ArgumentTreeNodeBase> {
-                    if (it.isExpanded) {
-                        tree.expandPath(TreePath(it.path))
-                        return@traverse true
-                    }
-                    return@traverse false
+                val path = TreePath(parent.path)
+                tree.expandByPredicate {
+                    (it.lastPathComponent as? ArgumentTreeNodeBase)?.isExpanded == true 
+                            && (it == path || it.isDescendant(path) || path.isDescendant(it))
                 }
             }
             return true
@@ -248,24 +239,12 @@ internal class CopyPasteProvider : CopyProvider, CutProvider, PasteProvider, Del
         override fun isDataFlavorSupported(flavor: DataFlavor): Boolean = flavors.any { it.equals(flavor) }
 
         override fun getTransferData(flavor: DataFlavor): Any {
+            val asString = jObject.toString()
             return when (flavor) {
                 INNER_FLAVOR -> jObject
-                JSON_FLAVOR -> jObject.toString()
-                DataFlavor.stringFlavor -> toPrettyString()
+                JSON_FLAVOR -> asString
+                DataFlavor.stringFlavor -> asString
                 else -> throw UnsupportedFlavorException(flavor)
-            }
-        }
-
-        private fun toPrettyString(): String {
-            try {
-                return StringWriter().also {
-                    Streams.write(jObject, JsonWriter(it).apply {
-                        strictness = Strictness.LENIENT
-                        setIndent("    ")
-                    })
-                }.toString()
-            } catch (e: IOException) {
-                throw AssertionError(e)
             }
         }
     }

@@ -40,7 +40,6 @@ internal class MoveDownAction : DumbAwareAction(), TreeAction {
         index = min(index, parent.childCount)
         val newSelectionPaths = ArrayList<TreePath>(selectedNodes.count())
         for (node in selectedNodes) {
-            val wasExpanded = tree.isExpanded(TreePath(node.path))
             if (node.parent === parent && parent.getIndex(node) < index) {
                 index--
             }
@@ -51,7 +50,7 @@ internal class MoveDownAction : DumbAwareAction(), TreeAction {
             }
             val path = TreePath(node.path)
             newSelectionPaths.add(path)
-            if (wasExpanded) {
+            if (node.isExpanded) {
                 tree.expandPath(path)
             }
             index++
