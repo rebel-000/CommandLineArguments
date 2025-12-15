@@ -276,7 +276,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 }
             }
         }
-        if (showSharedArguments) {
+        if (globalStorage.showSharedNode) {
             reloadShared()
         }
         model.invalidate()
