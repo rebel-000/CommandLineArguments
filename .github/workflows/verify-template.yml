@@ -13,12 +13,6 @@ on:
         type: number
         default: 21
 
-      gradle-cache-disabled:
-        description: 'Disable Gradle build cache'
-        required: false
-        type: boolean
-        default: false
-
 jobs:
   verify:
     name: Verify
@@ -42,7 +36,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          cache-disabled: ${{ inputs.gradle-cache-disabled }}
+          cache-read-only: true
 
       - name: Run Plugin Verification tasks
         env:

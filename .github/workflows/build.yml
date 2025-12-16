@@ -32,7 +32,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          cache-disabled: true
+          cache-read-only: false
 
       - name: Build plugin
         run: ./gradlew :cmdlineargs-plugin:buildPlugin
@@ -76,7 +76,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          cache-disabled: true
+          cache-read-only: true
 
       - name: Run Tests
         run: ./gradlew :cmdlineargs-plugin:check
@@ -133,8 +133,6 @@ jobs:
     uses: './.github/workflows/verify-template.yml'
     with:
       ide-code: IU
-      gradle-cache-disabled: true
-      java-version: 21
 
   verify_CL:
     name: Verify plugin (Clion)
@@ -142,8 +140,6 @@ jobs:
     uses: './.github/workflows/verify-template.yml'
     with:
       ide-code: CL
-      gradle-cache-disabled: true
-      java-version: 21
 
   verify_PY:
     name: Verify plugin (PyCharm)
@@ -151,8 +147,6 @@ jobs:
     uses: './.github/workflows/verify-template.yml'
     with:
       ide-code: PY
-      gradle-cache-disabled: true
-      java-version: 21
 
   verify_RR:
     name: Verify plugin (Rust Rover)
@@ -160,8 +154,6 @@ jobs:
     uses: './.github/workflows/verify-template.yml'
     with:
       ide-code: RR
-      gradle-cache-disabled: true
-      java-version: 21
 
   verify_RD:
     name: Verify plugin (Rider)
@@ -169,8 +161,6 @@ jobs:
     uses: './.github/workflows/verify-template.yml'
     with:
       ide-code: RD
-      gradle-cache-disabled: true
-      java-version: 21
 
   releaseDraft:
     name: Release draft
