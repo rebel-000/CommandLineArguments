@@ -4,13 +4,11 @@
 
 ## Unreleased
 
-### Added
-
-### Changed
-
-### Removed
-
 ### Fixed
+
+- Optimize copy/expand/preview for large trees 
+- Shared arguments visibility on reload
+- Restore expand state on reload
 
 ## 3.0.0-eap.1 - 2025-12-12
 
