@@ -87,4 +87,4 @@ jobs:
             --body "Current pull request contains patched \`CHANGELOG.md\` file for the \`$VERSION\` version." \
             --label "$LABEL" \
             --head $BRANCH \
-            --base ${{ github.ref }}
+            --base ${{ github.ref_name }}

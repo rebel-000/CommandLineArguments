@@ -206,4 +206,4 @@ jobs:
             --draft \
             --title "v$VERSION" \
             --notes-file $RELEASE_NOTE \
-            --target ${{ github.ref }}
+            --target ${{ github.ref_name }}

@@ -21,7 +21,7 @@ on:
 
 jobs:
   verify:
-    name: Verify plugin
+    name: Verify
     runs-on: ubuntu-latest
     steps:
       - name: Maximize Build Space
@@ -54,5 +54,5 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: pluginVerifier-IU-result
+          name: pluginVerifier-${{ inputs.ide-code }}-result
           path: ${{ github.workspace }}/build/cmdlineargs-plugin/reports/pluginVerifier
