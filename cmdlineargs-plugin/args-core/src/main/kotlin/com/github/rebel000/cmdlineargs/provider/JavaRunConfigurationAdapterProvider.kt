@@ -6,7 +6,7 @@ import com.intellij.execution.CommonJavaRunConfigurationParameters
 import com.intellij.execution.RunnerAndConfigurationSettings
 
 internal class JavaRunConfigurationAdapterProvider : ArgumentsAdapterProviderExtension {
-    override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
+    override fun createAdapter(s: RunnerAndConfigurationSettings, isRunningCurrentFile: Boolean): ArgumentsAdapter? {
         return when(s.configuration) {
             is CommonJavaRunConfigurationParameters -> JavaRunConfigurationParamsAdapter(s)
             else -> null

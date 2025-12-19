@@ -21,7 +21,10 @@ import com.jetbrains.rider.run.configurations.project.DotNetProjectConfiguration
 import com.jetbrains.rider.run.configurations.uwp.UwpConfiguration
 
 internal class RiderConfigurationAdapterProvider : ArgumentsAdapterProviderExtension {
-    override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
+    override fun createAdapter(s: RunnerAndConfigurationSettings, isRunningCurrentFile: Boolean): ArgumentsAdapter? {
+        if (isRunningCurrentFile) {
+            return null
+        }
         return when (s.configuration) {
             is CppProjectConfiguration -> CppProjectConfigurationAdapter(s)
             is UwpConfiguration -> UwpConfigurationAdapter(s)

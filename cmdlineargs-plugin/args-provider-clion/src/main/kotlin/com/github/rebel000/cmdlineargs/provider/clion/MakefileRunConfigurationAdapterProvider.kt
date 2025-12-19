@@ -6,7 +6,10 @@ import com.intellij.execution.RunnerAndConfigurationSettings
 import com.jetbrains.lang.makefile.MakefileRunConfiguration
 
 class MakefileRunConfigurationAdapterProvider : ArgumentsAdapterProviderExtension {
-    override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
+    override fun createAdapter(s: RunnerAndConfigurationSettings, isRunningCurrentFile: Boolean): ArgumentsAdapter? {
+        if (isRunningCurrentFile) {
+            return null
+        }
         return when (s.configuration) {
             is MakefileRunConfiguration -> MakefileRunConfigurationAdapter(s)
             else -> null

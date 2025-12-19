@@ -7,7 +7,7 @@ import com.jetbrains.kotlin.commonNative.debugger.RunConfigurationWithExecutable
 import org.jetbrains.kotlin.idea.run.KotlinRunConfiguration
 
 internal class KotlinRunConfigurationAdapterProvider : ArgumentsAdapterProviderExtension {
-    override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
+    override fun createAdapter(s: RunnerAndConfigurationSettings, isRunningCurrentFile: Boolean): ArgumentsAdapter? {
         return when (s.configuration) {
             is RunConfigurationWithExecutable -> KotlinRunConfigurationParamsAdapter(s)
             is KotlinRunConfiguration -> KotlinRunConfigurationParamsAdapter(s)

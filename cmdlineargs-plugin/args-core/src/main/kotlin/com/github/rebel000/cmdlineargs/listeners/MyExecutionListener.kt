@@ -8,14 +8,14 @@ import com.intellij.openapi.project.Project
 
 internal class MyExecutionListener(private val project: Project) : ExecutionListener {
     override fun processStarting(executorId: String, env: ExecutionEnvironment) {
-        ArgumentsService.getInstance(project).onProcessStarting(env.runnerAndConfigurationSettings)
+        ArgumentsService.getInstance(project).onProcessStarting(env)
     }
 
     override fun processNotStarted(executorId: String, env: ExecutionEnvironment) {
-        ArgumentsService.getInstance(project).onProcessNotStarted(env.runnerAndConfigurationSettings)
+        ArgumentsService.getInstance(project).onProcessNotStarted(env)
     }
 
     override fun processStarted(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
-        ArgumentsService.getInstance(project).onProcessStarted(env.runnerAndConfigurationSettings)
+        ArgumentsService.getInstance(project).onProcessStarted(env)
     }
 }

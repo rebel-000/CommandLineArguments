@@ -7,7 +7,10 @@ import org.rust.cargo.runconfig.RsCommandConfiguration
 import org.rust.cargo.runconfig.command.CargoCommandConfiguration
 
 internal class RustArgumentAdapterProviderProvider : ArgumentsAdapterProviderExtension {
-    override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
+    override fun createAdapter(s: RunnerAndConfigurationSettings, isRunningCurrentFile: Boolean): ArgumentsAdapter? {
+        if (isRunningCurrentFile) {
+            return null
+        }
         return when (s.configuration) {
             is CargoCommandConfiguration -> CargoCommandConfigurationAdapter(s)
             is RsCommandConfiguration -> RsCommandConfigurationAdapter(s)

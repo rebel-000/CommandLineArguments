@@ -166,33 +166,38 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         _revision++
     }
 
-    internal fun onProcessStarting(s: RunnerAndConfigurationSettings?) {
-        if (isEnabled && s != null) {
-            val adapter = getAdapter(s)
+    internal fun onProcessStarting(env: ExecutionEnvironment) {
+        val settings = env.runnerAndConfigurationSettings
+        if (isEnabled && settings != null) {
+            val adapter = getAdapter(settings)
             if (adapter != null) {
                 adapter.onStart()
-            } else {
-                val tempAdapter = createAdapter(s)?.takeIf { it.isTrusted() }
-                if (tempAdapter != null) {
-                    CollectArgsVisitor(tempAdapter.predicate()).let { visitor ->
-                        model.sharedRoot?.traverse(visitor)
-                        model.projectRoot.traverse(visitor)
-                        tempAdapter.setArguments(visitor.toString())
+            } else if (env.isRunningCurrentFile) {
+                createAdapter(settings, true)
+                    ?.takeIf { it.isTrusted() }
+                    ?.let { adapter ->
+                        CollectArgsVisitor(adapter.predicate()).let { visitor ->
+                            model.sharedRoot?.traverse(visitor)
+                            model.projectRoot.traverse(visitor)
+                            adapter.setArguments(visitor.toString())
+                            adapter.onStart()
+                        }
                     }
-                }
             }
         }
     }
 
-    internal fun onProcessNotStarted(s: RunnerAndConfigurationSettings?) {
-        if (isEnabled && s != null) {
-            getAdapter(s)?.onCleanup()
+    internal fun onProcessNotStarted(env: ExecutionEnvironment) {
+        val settings = env.runnerAndConfigurationSettings
+        if (isEnabled && settings != null) {
+            getAdapter(settings)?.onCleanup()
         }
     }
 
-    internal fun onProcessStarted(s: RunnerAndConfigurationSettings?) {
-        if (isEnabled && s != null) {
-            getAdapter(s)?.onCleanup()
+    internal fun onProcessStarted(env: ExecutionEnvironment) {
+        val settings = env.runnerAndConfigurationSettings
+        if (isEnabled && settings != null) {
+            getAdapter(settings)?.onCleanup()
         }
     }
 
@@ -202,7 +207,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             project.thisLogger().warn("[com.github.rebel000.cmdlineargs] Adapter for $key already exists")
             return
         }
-        val adapter = createAdapter(s)
+        val adapter = createAdapter(s, false)
         if (adapter != null) {
             adapter.enabled = projectStorage.enabledConfigs.contains(key)
             adapters[key] = adapter
@@ -280,9 +285,9 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         model.invalidate()
     }
 
-    private fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
+    private fun createAdapter(s: RunnerAndConfigurationSettings, isRunningCurrentFile: Boolean): ArgumentsAdapter? {
         return ArgumentsAdapterProviderExtension.EP_NAME.extensionList.firstNotNullOfOrNull {
-            it.createAdapter(s)
+            it.createAdapter(s, isRunningCurrentFile)
         }
     }
 

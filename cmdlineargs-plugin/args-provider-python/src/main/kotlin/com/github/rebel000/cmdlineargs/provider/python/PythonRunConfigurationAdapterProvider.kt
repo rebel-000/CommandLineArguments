@@ -6,7 +6,7 @@ import com.intellij.execution.RunnerAndConfigurationSettings
 import com.jetbrains.python.run.PythonRunConfigurationParams
 
 internal class PythonRunConfigurationAdapterProvider : ArgumentsAdapterProviderExtension {
-    override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
+    override fun createAdapter(s: RunnerAndConfigurationSettings, isRunningCurrentFile: Boolean): ArgumentsAdapter? {
         return when (s.configuration) {
             is PythonRunConfigurationParams -> PythonRunConfigurationParamsAdapter(s)
             else -> null

@@ -9,5 +9,5 @@ interface ArgumentsAdapterProviderExtension {
         val EP_NAME: ExtensionPointName<ArgumentsAdapterProviderExtension> = ExtensionPointName.create("com.github.rebel000.cmdlineargs.extensions.adapterProvider")
     }
 
-    fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter?
+    fun createAdapter(s: RunnerAndConfigurationSettings, isRunningCurrentFile: Boolean): ArgumentsAdapter?
 }

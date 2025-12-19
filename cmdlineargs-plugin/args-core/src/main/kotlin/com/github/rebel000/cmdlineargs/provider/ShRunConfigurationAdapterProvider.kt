@@ -6,7 +6,7 @@ import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.sh.run.ShRunConfiguration
 
 internal class ShRunConfigurationAdapterProvider : ArgumentsAdapterProviderExtension {
-    override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
+    override fun createAdapter(s: RunnerAndConfigurationSettings, isRunningCurrentFile: Boolean): ArgumentsAdapter? {
         return when (s.configuration) {
             is ShRunConfiguration -> ShRunConfigurationAdapter(s)
             else -> null

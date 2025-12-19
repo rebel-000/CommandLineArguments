@@ -8,7 +8,10 @@ import com.intellij.execution.RunnerAndConfigurationSettings
 import com.jetbrains.cidr.cpp.execution.CLionRunConfiguration
 
 class CLionRunConfigurationAdapterProvider : ArgumentsAdapterProviderExtension {
-    override fun createAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
+    override fun createAdapter(s: RunnerAndConfigurationSettings, isRunningCurrentFile: Boolean): ArgumentsAdapter? {
+        if (isRunningCurrentFile) {
+            return null
+        }
         val configuration = s.configuration as? CLionRunConfiguration<*, *>
         return when (configuration) {
             is CommonProgramRunConfigurationParameters -> CLionRunConfigurationAdapter(s)
