@@ -1,7 +1,7 @@
 package com.github.rebel000.cmdlineargs.tree
 
 import com.github.rebel000.cmdlineargs.ArgumentsAdapter
-import com.github.rebel000.cmdlineargs.getArgumentsAdapterName
+import com.github.rebel000.cmdlineargs.getQualifiedDisplayName
 import com.github.rebel000.cmdlineargs.resources.Messages
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.icons.AllIcons
@@ -42,7 +42,7 @@ internal open class ConfigurationNode(text: String, icon: Icon? = null, style: S
                 else -> null
             }
             val arguments = adapter.getArguments()
-            text = "${config.getArgumentsAdapterName()}: ${arguments.trimTo(256)}"
+            text = "${config.getQualifiedDisplayName()}: ${arguments.trimTo(256)}"
             if (isExperimental) {
                 text = "*$text"
                 tooltip = Messages.message("tooltip.untrusted")

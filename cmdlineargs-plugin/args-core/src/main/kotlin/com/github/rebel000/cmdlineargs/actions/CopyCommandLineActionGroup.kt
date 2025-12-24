@@ -1,6 +1,6 @@
 package com.github.rebel000.cmdlineargs.actions
 
-import com.github.rebel000.cmdlineargs.getArgumentsAdapterName
+import com.github.rebel000.cmdlineargs.getQualifiedDisplayName
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.openapi.actionSystem.ActionUpdateThread
@@ -35,7 +35,7 @@ internal class CopyCommandLineActionGroup : DefaultActionGroup() {
         }
     }
 
-    class Action(s: RunnerAndConfigurationSettings) : DumbAwareAction(s.getArgumentsAdapterName()) {
+    class Action(s: RunnerAndConfigurationSettings) : DumbAwareAction(s.getQualifiedDisplayName()) {
         private val type = s.type.id
         private val name = s.name
         override fun actionPerformed(e: AnActionEvent) {

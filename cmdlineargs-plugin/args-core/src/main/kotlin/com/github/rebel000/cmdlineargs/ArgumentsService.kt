@@ -141,7 +141,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                     ?.allSettings
                     .orEmpty()
                     .mapNotNull { 
-                        it.takeIf { getAdapter(it)?.isTrusted() == true }?.getArgumentsAdapterFilterKey()
+                        it.takeIf { getAdapter(it)?.isTrusted() == true }?.getQualifiedFilterName()
                     }.distinct()
             )
         )

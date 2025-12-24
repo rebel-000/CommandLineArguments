@@ -3,7 +3,7 @@ package com.github.rebel000.cmdlineargs.provider.rider
 import com.github.rebel000.cmdlineargs.ArgumentsService
 import com.github.rebel000.cmdlineargs.extensions.PlatformExtension
 import com.github.rebel000.cmdlineargs.FilterDefinition
-import com.github.rebel000.cmdlineargs.getArgumentsAdapterFilterKey
+import com.github.rebel000.cmdlineargs.getQualifiedFilterName
 import com.github.rebel000.cmdlineargs.provider.rider.resources.RiderMessages
 import com.github.rebel000.cmdlineargs.resources.Messages
 import com.intellij.execution.RunManager
@@ -20,7 +20,7 @@ class RiderPlatformExtension : PlatformExtension {
             ?.allSettings
             .orEmpty()
             .mapNotNull {
-                it.takeIf { service.getAdapter(it)?.isTrusted() == true }?.getArgumentsAdapterFilterKey()
+                it.takeIf { service.getAdapter(it)?.isTrusted() == true }?.getQualifiedFilterName()
             }.distinct()
         val configurationsAndPlatformsCollection =
             project.solution.solutionProperties.configurationsAndPlatformsCollection.valueOrEmpty()

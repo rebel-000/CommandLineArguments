@@ -32,7 +32,12 @@ abstract class ArgumentsAdapter(settings: RunnerAndConfigurationSettings) {
     abstract fun setArguments(value: String)
     open fun onStart() = Unit
     open fun onCleanup() = Unit
-    open fun predicate(): ((ArgumentNode) -> Boolean) = runConfigurationPredicate(filterKey)
+
+    open fun predicate(): ((ArgumentNode) -> Boolean) {
+        return settings
+            ?.let { runConfigurationPredicate(it.getQualifiedFilterName()) }
+            ?: { false }
+    }
 
     fun isTrusted(): Boolean {
         if (isExperimental()) {

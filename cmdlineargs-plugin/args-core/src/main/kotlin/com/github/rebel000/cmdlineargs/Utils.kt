@@ -6,11 +6,11 @@ fun RunnerAndConfigurationSettings.getArgumentsAdapterKey(): String {
     return "${type.id}:${name}"
 }
 
-fun RunnerAndConfigurationSettings.getArgumentsAdapterFilterKey(): String {
-    return "${type.displayName}:${name}"
+fun RunnerAndConfigurationSettings.getQualifiedFilterName(): String {
+    return "${type.displayName}:$name"
 }
 
-fun RunnerAndConfigurationSettings.getArgumentsAdapterName(): String {
+fun RunnerAndConfigurationSettings.getQualifiedDisplayName(): String {
     return "[${type.displayName}] $name"
 }
 
