@@ -1,6 +1,7 @@
 package com.github.rebel000.cmdlineargs.listeners
 
 import com.github.rebel000.cmdlineargs.ArgumentsService
+import com.intellij.execution.RunManager
 import com.intellij.execution.RunManagerListener
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.openapi.project.Project
@@ -20,5 +21,11 @@ internal class MyRunManagerListener(private val project: Project) : RunManagerLi
 
     override fun runConfigurationSelected(s: RunnerAndConfigurationSettings?) {
         ArgumentsService.getInstance(project).onRunConfigurationSelected(s)
+    }
+
+    override fun stateLoaded(runManager: RunManager, isFirstLoadState: Boolean) {
+        if (!project.isDefault) {
+            ArgumentsService.getInstance(project).onRunManagerLoaded(runManager)
+        }
     }
 }

@@ -61,7 +61,7 @@ internal class ArgumentDataContext : TreeModelListener, TreeSelectionListener {
         }
         for (path in tree.selectionPaths.orEmpty()) {
             (path.lastPathComponent as? ConfigurationNode)
-                ?.key
+                ?.settingsID
                 ?.let { service.findAdapter(it) }
                 ?.let { adapter ->
                     treeIsTrustedByName = treeIsTrustedByName || adapter.isTrustedByName() == true
@@ -98,7 +98,7 @@ internal class ArgumentDataContext : TreeModelListener, TreeSelectionListener {
                     if (node.isExperimental) {
                         treeSelectedExperimental++
                         if (!treeIsTrustedByName || !treeIsTrustedByType) {
-                            node.key
+                            node.settingsID
                                 ?.let { service.findAdapter(it) }
                                 ?.let {
                                     treeIsTrustedByName = treeIsTrustedByName || (it.isTrustedByName() == true)

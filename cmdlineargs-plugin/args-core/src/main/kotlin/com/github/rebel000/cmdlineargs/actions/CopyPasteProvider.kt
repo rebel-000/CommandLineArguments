@@ -74,7 +74,7 @@ internal class CopyPasteProvider : CopyProvider, CutProvider, PasteProvider, Del
         } else {
             val values = ArrayList<String>()
             tree.forEachSelectedNodeNoRecursion<ConfigurationNode> { node ->
-                node.key?.let { key ->
+                node.settingsID?.let { key ->
                     service.findAdapter(key)?.getArguments()?.let { value ->
                         values.add(value)
                     }

@@ -15,14 +15,15 @@ abstract class ArgumentsAdapter(settings: RunnerAndConfigurationSettings) {
         }
     }
 
+    private var _key = settings.uniqueID
+    private var _name = settings.name
     private val _settings = WeakReference(settings)
     private val projectStorage: ArgumentsProjectStorage.State?
         get() = settings?.let { ArgumentsProjectStorage.getInstance(it.configuration.project).state }
 
-    val key = settings.getArgumentsAdapterKey()
-    val filterKey = settings.getArgumentsAdapterFilterKey()
+    val key: String get() = _key
     val type = settings.type
-    val name = settings.name
+    val name: String get() = _name
     val settings: RunnerAndConfigurationSettings?
         get() = _settings.get()
 
@@ -46,6 +47,14 @@ abstract class ArgumentsAdapter(settings: RunnerAndConfigurationSettings) {
             } == true
         }
         return true
+    }
+    
+    internal fun invalidate() {
+        settings?.let {
+            enabled = projectStorage?.enabledConfigs?.contains(it.uniqueID) == true
+            _key = it.uniqueID
+            _name = it.name
+        }
     }
 
     internal fun isTrustedByName(): Boolean? {

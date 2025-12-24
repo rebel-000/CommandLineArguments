@@ -12,9 +12,8 @@ import com.github.rebel000.cmdlineargs.tree.visitors.CollectArgsVisitor
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.compound.CompoundRunConfiguration
-import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.execution.multilaunch.MultiLaunchConfiguration
-import com.intellij.execution.multilaunch.execution.executables.impl.RunConfigurationExecutableManager
+import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
@@ -34,6 +33,7 @@ import org.jetbrains.kotlin.utils.addToStdlib.ifFalse
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import java.io.File
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import javax.swing.event.TreeModelEvent
 import javax.swing.event.TreeModelListener
 import kotlin.io.path.Path
@@ -52,11 +52,15 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         fun getInstanceIfCreated(project: Project?): ArgumentsService? = project?.serviceIfCreated()
     }
 
-    private var _isEnabled = true
+    private var _isArgumentsInvalid = false
+    @Volatile private var _isEnabled = true
     private var _isPreviewInvalid = false
-    private var _revision = -1
+    @Volatile private var _isRunManagerLoaded = false
+    @Volatile private var _revision = -1
 
-    private val adapters = mutableMapOf<String, ArgumentsAdapter>()
+    private data class SettingsData(val adapter: ArgumentsAdapter?, val node: ConfigurationNode = ConfigurationNode())
+
+    private val perSettingsData = ConcurrentHashMap<String, SettingsData>()
     private val globalStorage: ArgumentsGlobalStorage.State get() = ArgumentsGlobalStorage.getInstance().state
     private val projectStorage: ArgumentsProjectStorage.State get() = ArgumentsProjectStorage.getInstance(project).state
     private val saveFlow = MutableSharedFlow<Unit>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -70,7 +74,9 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             if (_isEnabled != value) {
                 _isEnabled = value
                 saveFlow.tryEmit(Unit)
-                rebuildArguments()
+                perSettingsData.forEach { (_, it) -> it.node.setServiceEnabled(value) }
+                model.invalidate(model.previewRoot, true)
+                invalidateArguments()
             }
         }
 
@@ -119,7 +125,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     fun getAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
-        val adapter = adapters[s.getArgumentsAdapterKey()]
+        val adapter = perSettingsData[s.uniqueID]?.adapter
         return adapter?.takeIf { it.settings === s && it.isVisible(showExperimental) }
     }
 
@@ -147,19 +153,8 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         )
     }
 
-    internal fun findAdapter(key: String): ArgumentsAdapter? {
-        return adapters[key]
-    }
-
-    internal fun invalidatePreview() {
-        synchronized(this) {
-            if (!_isPreviewInvalid) {
-                _isPreviewInvalid = true
-                ApplicationManager.getApplication().invokeLater {
-                    rebuildPreview()
-                }
-            }
-        }
+    internal fun findAdapter(uniqueID: String): ArgumentsAdapter? {
+        return perSettingsData[uniqueID]?.adapter
     }
 
     internal fun markDirty() {
@@ -202,49 +197,68 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     internal fun onRunConfigurationAdded(s: RunnerAndConfigurationSettings) {
-        val key = s.getArgumentsAdapterKey()
-        if (adapters.containsKey(key)) {
-            project.thisLogger().warn("[com.github.rebel000.cmdlineargs] Adapter for $key already exists")
+        if (s.configuration is CompoundRunConfiguration || s.configuration is MultiLaunchConfiguration) {
             return
         }
-        val adapter = createAdapter(s, false)
-        if (adapter != null) {
-            adapter.enabled = projectStorage.enabledConfigs.contains(key)
-            adapters[key] = adapter
+        val uniqueID = s.uniqueID
+        if (perSettingsData.containsKey(uniqueID)) {
+            project.thisLogger().warn("[com.github.rebel000.cmdlineargs] $uniqueID already registered")
+            return
+        }
+        val adapter = createAdapter(s, false)?.also {
+            it.enabled = projectStorage.enabledConfigs.contains(uniqueID)
             markDirty()
         }
-        rebuildArguments()
+        val node = ConfigurationNode().also {
+            it.configure(s, adapter, isEnabled)
+            it.setActive(false)
+        }
+        perSettingsData[uniqueID] = SettingsData(adapter, node)
+        invalidateArguments()
+        invalidatePreview()
     }
 
     internal fun onRunConfigurationChanged(s: RunnerAndConfigurationSettings, existingId: String?) {
-        val oldKey = existingId?.let { "${s.type.id}:${it}" }
-        val newKey = s.getArgumentsAdapterKey()
-        if (oldKey != null && newKey != oldKey) {
-            adapters[oldKey]?.also {
-                adapters.remove(oldKey)
-                adapters[newKey] = it
-                if (projectStorage.enabledConfigs.remove(oldKey)) {
-                    projectStorage.enabledConfigs.add(newKey)
-                }
-            } ?: createAdapter(s)?.also {
-                adapters[newKey] = it 
+        val existingId = existingId ?: return
+        val uniqueID = s.uniqueID
+        if (uniqueID != existingId) {
+            if (projectStorage.enabledConfigs.remove(existingId)) {
+                projectStorage.enabledConfigs.add(uniqueID)
             }
+            perSettingsData.remove(existingId)?.let {
+                model.rawRemove(it.node)
+                perSettingsData[uniqueID] = it
+                it.adapter?.invalidate()
+                it.node.configure(s, it.adapter, isEnabled)
+            }
+            invalidatePreview()
             markDirty()
         }
-        rebuildArguments()
+        invalidateArguments()
     }
 
     internal fun onRunConfigurationRemoved(s: RunnerAndConfigurationSettings) {
         markDirty()
-        s.getArgumentsAdapterKey().let {  key ->
-            adapters.remove(key)
-            projectStorage.enabledConfigs.remove(key)
+        val uniqueID = s.uniqueID
+        perSettingsData.remove(uniqueID)?.let {
+            model.rawRemove(it.node)
         }
-        rebuildArguments()
+        projectStorage.enabledConfigs.remove(uniqueID)
+    }
+
+    internal fun onRunConfigurationSelected(s: RunnerAndConfigurationSettings?) {
+        RunManager.getInstanceIfCreated(project)?.let {
+            val activeConfigurations = s?.getEffectiveConfigurations().orEmpty()
+            perSettingsData.forEach { (uniqueID, it) ->
+                it.node.setActive(activeConfigurations.contains(uniqueID))
+            }
+        }
     }
 
     @Suppress("unused")
-    internal fun onRunConfigurationSelected(s: RunnerAndConfigurationSettings?) {
+    internal fun onRunManagerLoaded(runManager: RunManager) {
+        _isRunManagerLoaded = true
+        invalidateArguments()
         invalidatePreview()
     }
 
@@ -291,8 +305,36 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         }
     }
 
+    private fun invalidateArguments() {
+        synchronized(this@ArgumentsService) {
+            if (!_isArgumentsInvalid && _isRunManagerLoaded) {
+                _isArgumentsInvalid = true
+                ApplicationManager.getApplication().invokeLater {
+                    synchronized(this@ArgumentsService) {
+                        _isArgumentsInvalid = false
+                    }
+                    rebuildArguments()
+                }
+            }
+        }
+    }
+
+    private fun invalidatePreview() {
+        synchronized(this@ArgumentsService) {
+            if (!_isPreviewInvalid && _isRunManagerLoaded) {
+                _isPreviewInvalid = true
+                ApplicationManager.getApplication().invokeLater {
+                    synchronized(this@ArgumentsService) {
+                        _isPreviewInvalid = false
+                    }
+                    rebuildPreview()
+                }
+            }
+        }
+    }
+
     private fun locateStateFile(): String? {
-        val basePath = project.basePath!!
+        val basePath = project.basePath ?: return null
         if (PlatformExtension.EP_NAME.extensions.any { it.isRider() }) {
             val riderConfig = Path(basePath).resolve(project.name + ".cmdlineargs.json")
             Path(basePath).resolve(project.name + ".ddargs.json").let { oldConfig ->
@@ -332,23 +374,25 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     private fun save() {
-        val (writer, finalize) = stateFilePath?.let { path ->
-            JsonObjectWriter().let { 
-                it to { File(path).writeText(it.toString()) }
-            }
-        } ?: XmlObjectWriter("state").let {
-            it to { projectStorage.projectArguments = it.xElement }
-        }
+        val writer = stateFilePath?.let { JsonObjectWriter() } ?: XmlObjectWriter("state")
         writer["revision"] = SERIALIZE_REVISION
         writer["enabled"] = isEnabled
         writer["preview"] = model.previewRoot.isExpanded
         model.projectRoot.serialize(writer.addObject("root"))
-        finalize()
         projectStorage.enabledConfigs = model.previewRoot.children()
             .asSequence()
             .mapNotNull { node ->
-                (node as? ConfigurationNode)?.takeIf { it.isChecked }?.key
+                (node as? ConfigurationNode)?.takeIf { it.isChecked }?.settingsID
             }.toMutableSet()
+        when (writer) {
+            is JsonObjectWriter -> {
+                File(stateFilePath!!).writeText(writer.toString())
+            }
+
+            is XmlObjectWriter -> {
+                projectStorage.projectArguments = writer.xElement
+            }
+        }
         saveShared()
     }
 
@@ -364,10 +408,10 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
 
     private fun rebuildArguments() {
         if (isEnabled) {
-            val visitors = adapters.mapNotNull {
-                if (it.value.enabled) {
-                    object : CollectArgsVisitor(it.value.predicate()) {
-                        val adapter = it.value
+            val visitors = perSettingsData.mapNotNull { (_, it) ->
+                if (it.adapter?.enabled == true) {
+                    object : CollectArgsVisitor(it.adapter.predicate()) {
+                        val adapter: ArgumentsAdapter = it.adapter
                     }
                 } else {
                     null
@@ -407,104 +451,88 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             model.projectRoot.traverse(multiVisitor)
             for (visitor in visitors) {
                 if (visitor.adapter.enabled) {
-                    visitor.adapter.setArguments(visitor.toString())
+                    val value = visitor.toString()
+                    visitor.adapter.setArguments(value)
+                    perSettingsData[visitor.adapter.key]?.node?.setValue(value)
                 }
             }
         }
-        invalidatePreview()
-    }
-
-    private fun collectRunConfigurations(config: RunConfiguration?): Set<RunConfiguration> {
-        val toProcess = ArrayDeque<RunConfiguration>()
-        val toSkip = mutableSetOf<RunConfiguration>()
-        val toReturn = mutableSetOf<RunConfiguration>()
-        config?.let { toProcess.add(it) }
-        while (toProcess.isNotEmpty()) {
-            val config = toProcess.pop()
-            if (config in toSkip) {
-                continue
-            }
-            toSkip.add(config)
-            when (config) {
-                is CompoundRunConfiguration -> {
-                    config
-                        .getConfigurationsWithEffectiveRunTargets()
-                        .forEach { toProcess.add(it.configuration) }
-                }
-                is MultiLaunchConfiguration -> {
-                    config
-                        .descriptors
-                        .forEach {
-                            (it.executable as? RunConfigurationExecutableManager.RunConfigurationExecutable)
-                                ?.let { executable -> toProcess.add(executable.settings.configuration) }
-                        }
-                }
-                else -> {
-                    toReturn.add(config)
-                }
-            }
-        }
-        return toReturn
     }
 
     private fun rebuildPreview() {
-        synchronized(this) {
-            _isPreviewInvalid = false
-        }
+        val allConfigs = perSettingsData.toList().sortedBy { it.first }
+        val activeConfigurations =
+            RunManager.getInstanceIfCreated(project)?.selectedConfiguration?.getEffectiveConfigurations()
+        var after: ArgumentTreeNodeBase? = null
         var visibleNodes = 0
-        RunManager.getInstanceIfCreated(project)?.let { runManager ->
-            val activeConfigurations = collectRunConfigurations(runManager.selectedConfiguration?.configuration)
-            runManager.allSettings.forEach { config ->
-                if (config.configuration !is CompoundRunConfiguration && config.configuration !is MultiLaunchConfiguration) {
-                    val adapter = getAdapter(config)
-                    if (adapter != null || showUnsupported) {
-                        val node = if (model.previewRoot.childCount > visibleNodes) {
-                            model.previewRoot.getChildAt(visibleNodes) as ConfigurationNode
-                        } else {
-                            ConfigurationNode("").also {
-                                model.rawInsert(it, model.previewRoot, model.previewRoot.childCount)
-                            }
-                        }
-                        node.configure(
-                            config = config,
-                            adapter = adapter,
-                            isActive = config.configuration in activeConfigurations,
-                            isGlobalEnabled = isEnabled
-                        )
-                        visibleNodes++
+        for ((uniqueID, it) in allConfigs) {
+            val (adapter, node) = it
+            activeConfigurations?.let { node.setActive(it.contains(uniqueID)) }
+            if (adapter != null || showUnsupported) {
+                if (node.parent == null) {
+                    val index = if (after != null) {
+                        model.previewRoot.getIndex(after) + 1
+                    } else {
+                        0
                     }
+                    model.rawInsert(node, model.previewRoot, index)
+                }
+                after = node
+                visibleNodes++
+            } else {
+                if (node.parent != null) {
+                    model.rawRemove(node)
                 }
             }
         }
-        while (model.previewRoot.childCount > visibleNodes) {
-            model.rawRemove(model.previewRoot.lastChild as ArgumentTreeNodeBase)
+        if (visibleNodes != model.previewRoot.childCount) {
+            // this should never happen
+            model.previewRoot.children()
+                .asSequence()
+                .mapNotNull {
+                    it.takeIf {
+                        it !is ConfigurationNode || !perSettingsData.containsKey(it.settingsID)
+                    } as? ArgumentTreeNodeBase
+                }.forEach {
+                    model.rawRemove(it)
+                }
         }
         model.invalidate(model.previewRoot, true)
     }
 
     private fun onArgumentsChanged(nodes: List<ArgumentTreeNodeBase>) {
-        var shouldRebuild = false
+        var shouldInvalidate = false
+        var shouldSave = false
         for (node in nodes) {
             when (node) {
-                is ArgumentContainer -> shouldRebuild = true
-                is ConfigurationNode -> node.key
-                    ?.let { adapters[it] }
-                    ?.let { adapter ->
-                        adapter.enabled = node.isChecked
-                        if (node.isChecked) {
-                            val visitor = CollectArgsVisitor(adapter.predicate())
-                            model.sharedRoot?.traverse(visitor)
-                            model.projectRoot.traverse(visitor)
-                            adapter.setArguments(visitor.toString())
+                is ArgumentContainer -> {
+                    shouldInvalidate = true
+                    shouldSave = true
+                }
+
+                is ConfigurationNode -> node.settingsID?.let {
+                    perSettingsData[it]?.adapter?.let { adapter ->
+                        if (adapter.enabled != node.isChecked) {
+                            adapter.enabled = node.isChecked
+                            if (node.isChecked) {
+                                val visitor = CollectArgsVisitor(adapter.predicate())
+                                model.sharedRoot?.traverse(visitor)
+                                model.projectRoot.traverse(visitor)
+                                val value = visitor.toString()
+                                adapter.setArguments(value)
+                                node.setValue(value)
+                            }
+                            shouldSave = true
                         }
-                        invalidatePreview()
-                        saveFlow.tryEmit(Unit)
                     }
+                }
             }
         }
-        if (shouldRebuild) {
+        if (shouldInvalidate) {
+            invalidateArguments()
+        }
+        if (shouldSave) {
             saveFlow.tryEmit(Unit)
-            rebuildArguments()
         }
     }
 
@@ -516,19 +544,19 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
 
     override fun treeNodesInserted(e: TreeModelEvent?) {
         (e?.treePath?.lastPathComponent as? ArgumentTreeNodeBase)?.let {
-            ApplicationManager.getApplication().invokeLater { onArgumentsChanged(listOf(it)) }
+            onArgumentsChanged(listOf(it))
         }
     }
 
     override fun treeNodesRemoved(e: TreeModelEvent?) {
         (e?.treePath?.lastPathComponent as? ArgumentTreeNodeBase)?.let {
-            ApplicationManager.getApplication().invokeLater { onArgumentsChanged(listOf(it)) }
+            onArgumentsChanged(listOf(it))
         }
     }
 
     override fun treeStructureChanged(e: TreeModelEvent?) {
         (e?.treePath?.lastPathComponent as? ArgumentTreeNodeBase)?.let {
-            ApplicationManager.getApplication().invokeLater { onArgumentsChanged(listOf(it)) }
+            onArgumentsChanged(listOf(it))
         }
     }
 }

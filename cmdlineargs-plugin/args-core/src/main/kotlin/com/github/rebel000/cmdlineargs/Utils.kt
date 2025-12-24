@@ -1,10 +1,13 @@
 package com.github.rebel000.cmdlineargs
 
+import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
-
-fun RunnerAndConfigurationSettings.getArgumentsAdapterKey(): String {
-    return "${type.id}:${name}"
-}
+import com.intellij.execution.compound.CompoundRunConfiguration
+import com.intellij.execution.impl.RunConfigurationBeforeRunProvider.RunConfigurableBeforeRunTask
+import com.intellij.execution.impl.RunManagerImpl
+import com.intellij.execution.multilaunch.MultiLaunchConfiguration
+import com.intellij.execution.multilaunch.execution.executables.impl.RunConfigurationExecutableManager
+import java.util.*
 
 fun RunnerAndConfigurationSettings.getQualifiedFilterName(): String {
     return "${type.displayName}:$name"
@@ -12,6 +15,54 @@ fun RunnerAndConfigurationSettings.getQualifiedFilterName(): String {
 
 fun RunnerAndConfigurationSettings.getQualifiedDisplayName(): String {
     return "[${type.displayName}] $name"
+}
+
+fun RunnerAndConfigurationSettings.getEffectiveConfigurations(): Set<String> {
+    val toProcess = ArrayDeque<RunnerAndConfigurationSettings>()
+    val toSkip = mutableSetOf<RunnerAndConfigurationSettings>()
+    val toReturn = mutableSetOf<String>()
+    toProcess.add(this)
+    while (toProcess.isNotEmpty()) {
+        val s = toProcess.pop()
+        if (s in toSkip) {
+            continue
+        }
+        toSkip.add(s)
+        s.configuration.beforeRunTasks.forEach {
+            (it as? RunConfigurableBeforeRunTask)
+                ?.settings
+                ?.let { s ->
+                    toProcess.add(s)
+                }
+        }
+        when (val config = s.configuration) {
+            is CompoundRunConfiguration -> {
+                val runManager = RunManager.getInstanceIfCreated(this.configuration.project)
+                val runManagerImpl = runManager as? RunManagerImpl
+                if (runManagerImpl != null) {
+                    config.getConfigurationsWithTargets(runManagerImpl).keys.forEach {
+                        runManager.findSettings(it)?.let { s ->
+                            toProcess.add(s)
+                        }
+                    }
+                } else {
+                    toReturn.add(s.uniqueID)
+                }
+            }
+            is MultiLaunchConfiguration -> {
+                config
+                    .descriptors
+                    .forEach {
+                        (it.executable as? RunConfigurationExecutableManager.RunConfigurationExecutable)
+                            ?.let { executable -> toProcess.add(executable.settings) }
+                    }
+            }
+            else -> {
+                toReturn.add(s.uniqueID)
+            }
+        }
+    }
+    return toReturn
 }
 
 fun String.matchesWildcard(mask: String): Boolean {

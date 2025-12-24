@@ -27,22 +27,22 @@ internal class TrustActionGroup : DefaultActionGroup() {
 
     abstract class TrustActionBase : DumbAwareToggleAction() {
         protected abstract fun setTrusted(adapter: ArgumentsAdapter, value: Boolean)
-        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
         override fun setSelected(e: AnActionEvent, state: Boolean) = e.withArgumentDataContext {
-            var updatePreview = false
+            var dirty = false
             for (path in tree.selectionPaths) {
                 (path.lastPathComponent as? ConfigurationNode)?.let { node ->
-                    node.key
+                    node.settingsID
                         ?.let { service.findAdapter(it) }
                         ?.let { adapter ->
                             setTrusted(adapter, state)
                             node.isEnabled = adapter.isTrusted()
-                            updatePreview = true
+                            node.setTrusted(adapter.isTrusted())
+                            dirty = true
                         }
                 }
             }
-            if (updatePreview) {
-                service.invalidatePreview()
+            if (dirty) {
                 service.markDirty()
             }
         }
