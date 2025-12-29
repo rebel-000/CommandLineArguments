@@ -54,6 +54,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
 
     private var _isArgumentsInvalid = false
     @Volatile private var _isEnabled = true
+    @Volatile private var _isSharedEnabled = false
     private var _isPreviewInvalid = false
     @Volatile private var _isRunManagerLoaded = false
     @Volatile private var _revision = -1
@@ -73,25 +74,17 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         set(value) {
             if (_isEnabled != value) {
                 _isEnabled = value
-                saveFlow.tryEmit(Unit)
-                perSettingsData.forEach { (_, it) -> it.node.setServiceEnabled(value) }
-                model.invalidate(model.previewRoot, true)
-                invalidateArguments()
+                onEnabledChanged()
             }
         }
 
     var showSharedArguments
-        get() = model.sharedRoot != null
+        get() = _isSharedEnabled
         set(value) {
-            val isSharedEnabled = model.sharedRoot != null
-            if (isSharedEnabled != value) {
+            if (_isSharedEnabled != value) {
+                _isSharedEnabled = value
                 globalStorage.showSharedNode = value
-                if (value) {
-                    reloadShared()
-                } else {
-                    saveShared()
-                    model.sharedRoot = null
-                }
+                onShowSharedChanged()
             }
         }
 
@@ -352,6 +345,15 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         return null
     }
 
+    private fun onEnabledChanged() {
+        perSettingsData.forEach { (_, it) ->
+            it.node.setServiceEnabled(_isEnabled)
+            model.invalidate(it.node, false)
+        }
+        invalidateArguments()
+        saveFlow.tryEmit(Unit)
+    }
+
     private fun onShowExperimentalChanged() {
         perSettingsData.forEach { (_, it) ->
             val (adapter, node) = it
@@ -363,6 +365,15 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             }
         }
         invalidateArguments()
+    }
+
+    private fun onShowSharedChanged() {
+        if (_isSharedEnabled) {
+            reloadShared()
+        } else {
+            saveShared()
+            model.sharedRoot = null
+        }
     }
 
     private fun reloadShared() {
