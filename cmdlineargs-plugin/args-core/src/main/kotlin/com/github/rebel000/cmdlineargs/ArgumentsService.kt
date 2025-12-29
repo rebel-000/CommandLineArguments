@@ -23,12 +23,10 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.util.io.copy
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.jetbrains.kotlin.utils.addToStdlib.ifFalse
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import java.io.File
@@ -42,9 +40,8 @@ import kotlin.io.path.exists
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-@OptIn(FlowPreview::class)
 @Service(Service.Level.PROJECT)
-class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Disposable, TreeModelListener {
+class ArgumentsService(val project: Project, private val cs: CoroutineScope) : Disposable, TreeModelListener {
     companion object {
         const val SERIALIZE_REVISION: Int = 3
         val DEFERRED_SAVE_DELAY: Duration = 1.seconds
@@ -54,6 +51,8 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     private val _isArgumentsInvalid = AtomicBoolean(false)
+    private val _isPendingSave = AtomicBoolean(false)
+    private val _isProcessingSave = AtomicBoolean(false)
     private val _isPreviewInvalid = AtomicBoolean(false)
 
     @Volatile
@@ -66,6 +65,8 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     private var _isSharedEnabled = false
     @Volatile
     private var _revision = -1
+    @Volatile
+    private var _saveJob: Job? = null
 
     private data class SettingsData(val adapter: ArgumentsAdapter?, val node: ConfigurationNode = ConfigurationNode())
 
@@ -73,8 +74,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     private val perSettingsData = ConcurrentHashMap<String, SettingsData>()
     private val globalStorage: ArgumentsGlobalStorage.State get() = ArgumentsGlobalStorage.getInstance().state
     private val projectStorage: ArgumentsProjectStorage.State get() = ArgumentsProjectStorage.getInstance(project).state
-    private val saveFlow = MutableSharedFlow<Unit>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-    private var stateFilePath: String? = locateStateFile()
+    private var stateFilePath: String? = null
 
     internal val model: ArgumentTreeModel get() {
         ApplicationManager.getApplication().assertIsDispatchThread()
@@ -118,7 +118,6 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
 
     init {
         _model.addTreeModelListener(this)
-        coroScope.launch { saveFlow.debounce(DEFERRED_SAVE_DELAY).collectLatest { save() } }
         ApplicationManager.getApplication().invokeLater {
             reload()
             invalidate(arguments = true)
@@ -126,7 +125,17 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     }
 
     override fun dispose() {
-        save()
+        runBlocking {
+            _saveJob?.let {
+                if (_isProcessingSave.compareAndSet(false, true)) {
+                    it.cancel()
+                    save()
+                    _isProcessingSave.set(false)
+                } else {
+                    it.join()
+                }
+            }
+        }
     }
 
     fun getAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
@@ -355,7 +364,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             model.invalidate(it.node, false)
         }
         invalidate(arguments = true)
-        saveFlow.tryEmit(Unit)
+        requestSave()
     }
 
     private fun onShowExperimentalChanged() {
@@ -430,6 +439,18 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 revision = SERIALIZE_REVISION
                 sharedArguments = XmlObjectWriter("args").also { w -> root.serialize(w) }.xElement
                 sharedArgs = null
+            }
+        }
+    }
+
+    private fun requestSave() {
+        _isPendingSave.set(true)
+        _saveJob?.cancel()
+        _saveJob = cs.launch {
+            delay(DEFERRED_SAVE_DELAY)
+            if (_isProcessingSave.compareAndSet(false, true)) {
+                save()
+                _isProcessingSave.set(false)
             }
         }
     }
@@ -564,7 +585,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             invalidate(arguments = true)
         }
         if (shouldSave) {
-            saveFlow.tryEmit(Unit)
+            requestSave()
         }
     }
 
