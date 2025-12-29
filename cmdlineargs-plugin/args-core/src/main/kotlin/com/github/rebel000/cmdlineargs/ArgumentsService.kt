@@ -34,6 +34,7 @@ import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import java.io.File
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.swing.event.TreeModelEvent
 import javax.swing.event.TreeModelListener
 import kotlin.io.path.Path
@@ -52,12 +53,18 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         fun getInstanceIfCreated(project: Project?): ArgumentsService? = project?.serviceIfCreated()
     }
 
-    private var _isArgumentsInvalid = false
-    @Volatile private var _isEnabled = true
-    @Volatile private var _isSharedEnabled = false
-    private var _isPreviewInvalid = false
-    @Volatile private var _isRunManagerLoaded = false
-    @Volatile private var _revision = -1
+
+    private val _isArgumentsInvalid = AtomicBoolean(false)
+    private val _isPreviewInvalid = AtomicBoolean(false)
+
+    @Volatile
+    private var _isEnabled = true
+    @Volatile
+    private var _isRunManagerLoaded = false
+    @Volatile
+    private var _isSharedEnabled = false
+    @Volatile
+    private var _revision = -1
 
     private data class SettingsData(val adapter: ArgumentsAdapter?, val node: ConfigurationNode = ConfigurationNode())
 
@@ -99,7 +106,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         get() = globalStorage.showUnsupported
         set(value) {
             globalStorage.showUnsupported = value
-            invalidatePreview()
+            invalidate(preview = true)
         }
 
     val revision: Int get() = _revision
@@ -109,7 +116,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         coroScope.launch { saveFlow.debounce(DEFERRED_SAVE_DELAY).collectLatest { save() } }
         ApplicationManager.getApplication().invokeLater {
             reload()
-            rebuildArguments()
+            invalidate(arguments = true)
         }
     }
 
@@ -207,13 +214,13 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             it.setActive(false)
         }
         perSettingsData[uniqueID] = SettingsData(adapter, node)
-        invalidateArguments()
-        invalidatePreview()
+        invalidate(arguments = true, preview = true)
     }
 
     internal fun onRunConfigurationChanged(s: RunnerAndConfigurationSettings, existingId: String?) {
         val existingId = existingId ?: return
         val uniqueID = s.uniqueID
+        var invalidatePreview = false
         if (uniqueID != existingId) {
             if (projectStorage.enabledConfigs.remove(existingId)) {
                 projectStorage.enabledConfigs.add(uniqueID)
@@ -224,10 +231,10 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 it.adapter?.invalidate()
                 it.node.configure(s, it.adapter, isEnabled, showExperimental)
             }
-            invalidatePreview()
+            invalidatePreview = true
             markDirty()
         }
-        invalidateArguments()
+        invalidate(arguments = true, preview = invalidatePreview)
     }
 
     internal fun onRunConfigurationRemoved(s: RunnerAndConfigurationSettings) {
@@ -251,8 +258,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     @Suppress("unused")
     internal fun onRunManagerLoaded(runManager: RunManager) {
         _isRunManagerLoaded = true
-        invalidateArguments()
-        invalidatePreview()
+        invalidate(arguments = true, preview = true)
     }
 
     internal fun reload() {
@@ -298,30 +304,20 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         }
     }
 
-    private fun invalidateArguments() {
-        synchronized(this@ArgumentsService) {
-            if (!_isArgumentsInvalid && _isRunManagerLoaded) {
-                _isArgumentsInvalid = true
-                ApplicationManager.getApplication().invokeLater {
-                    synchronized(this@ArgumentsService) {
-                        _isArgumentsInvalid = false
-                    }
-                    rebuildArguments()
-                }
+    private fun invalidate(arguments: Boolean = false, preview: Boolean = false) {
+        if (!_isRunManagerLoaded) {
+            return
+        }
+        if (arguments && _isArgumentsInvalid.compareAndSet(false, true)) {
+            ApplicationManager.getApplication().invokeLater {
+                _isArgumentsInvalid.set(false)
+                rebuildArguments()
             }
         }
-    }
-
-    private fun invalidatePreview() {
-        synchronized(this@ArgumentsService) {
-            if (!_isPreviewInvalid && _isRunManagerLoaded) {
-                _isPreviewInvalid = true
-                ApplicationManager.getApplication().invokeLater {
-                    synchronized(this@ArgumentsService) {
-                        _isPreviewInvalid = false
-                    }
-                    rebuildPreview()
-                }
+        if (preview && _isPreviewInvalid.compareAndSet(false, true)) {
+            ApplicationManager.getApplication().invokeLater {
+                _isPreviewInvalid.set(false)
+                rebuildPreview()
             }
         }
     }
@@ -350,7 +346,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             it.node.setServiceEnabled(_isEnabled)
             model.invalidate(it.node, false)
         }
-        invalidateArguments()
+        invalidate(arguments = true)
         saveFlow.tryEmit(Unit)
     }
 
@@ -364,7 +360,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 }
             }
         }
-        invalidateArguments()
+        invalidate(preview = true)
     }
 
     private fun onShowSharedChanged() {
@@ -553,7 +549,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             }
         }
         if (shouldInvalidate) {
-            invalidateArguments()
+            invalidate(arguments = true)
         }
         if (shouldSave) {
             saveFlow.tryEmit(Unit)
