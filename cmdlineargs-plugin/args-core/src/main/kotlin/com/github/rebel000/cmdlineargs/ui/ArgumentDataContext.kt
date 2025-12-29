@@ -2,23 +2,23 @@ package com.github.rebel000.cmdlineargs.ui
 
 import com.github.rebel000.cmdlineargs.ArgumentsService
 import com.github.rebel000.cmdlineargs.tree.*
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.DataKey
+import com.intellij.openapi.util.Disposer
 import javax.swing.event.TreeModelEvent
 import javax.swing.event.TreeModelListener
 import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
 
-internal class ArgumentDataContext : TreeModelListener, TreeSelectionListener {
+internal class ArgumentDataContext(val service: ArgumentsService, val tree: ArgumentTree) : TreeModelListener, TreeSelectionListener, Disposable {
     companion object {
         val KEY = DataKey.create<ArgumentDataContext>("CMDLINEARGS_DATA_CONTEXT")
     }
 
-    private var _service: ArgumentsService? = null
-    private var _tree: ArgumentTree? = null
+    private var _disposed = false
 
-    val service: ArgumentsService get() = _service!!
+    val disposed: Boolean get() = _disposed
     val model: ArgumentTreeModel get() = service.model
-    val tree: ArgumentTree get() = _tree!!
 
     @Volatile
     var treeIsEditing = false
@@ -39,18 +39,16 @@ internal class ArgumentDataContext : TreeModelListener, TreeSelectionListener {
     @Volatile
     var treeSelectedCount: Int = 0
 
-    fun install(service: ArgumentsService, tree: ArgumentTree) {
+    fun install(disposable: Disposable) {
         tree.addTreeSelectionListener(this)
         service.model.addTreeModelListener(this)
-        _service = service
-        _tree = tree
+        Disposer.register(disposable, this)
     }
     
-    fun uninstall() {
+    override fun dispose() {
+        _disposed = true
         tree.removeTreeSelectionListener(this)
-        model.removeTreeModelListener(this)
-        _service = null
-        _tree = null
+        service.model.removeTreeModelListener(this)
     }
 
     override fun treeNodesChanged(e: TreeModelEvent?) {

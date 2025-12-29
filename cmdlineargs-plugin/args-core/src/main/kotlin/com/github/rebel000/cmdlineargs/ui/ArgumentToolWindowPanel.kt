@@ -17,7 +17,7 @@ import javax.swing.event.TreeModelEvent
 import javax.swing.event.TreeModelListener
 
 internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowPanel(true), TreeModelListener, Disposable {
-    private val context = ArgumentDataContext()
+    private val context: ArgumentDataContext
     private val copyPasteProvider = CopyPasteProvider()
     private val tree: ArgumentTree
 
@@ -25,7 +25,7 @@ internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowP
         val service = ArgumentsService.getInstance(project)
         tree = ArgumentTree(service.model)
         ArgumentTreeDnDSupport(tree).install(this)
-        context.install(service, tree)
+        ArgumentDataContext(service, tree).also { context = it }.install(this)
         installActions()
         service.model.addTreeModelListener(this)
         add(ScrollPaneFactory.createScrollPane(tree))
@@ -34,7 +34,6 @@ internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowP
 
     override fun dispose() {
         ArgumentsService.getInstance(project).model.removeTreeModelListener(this)
-        context.uninstall()
     }
 
     fun getTitleActions(): List<AnAction> {
@@ -65,7 +64,7 @@ internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowP
     override fun uiDataSnapshot(sink: DataSink) {
         super.uiDataSnapshot(sink)
         context.treeIsEditing = tree.isEditing
-        sink[ArgumentDataContext.KEY] = context
+        sink[ArgumentDataContext.KEY] = context.takeIf { !it.disposed }
         sink[PlatformDataKeys.CUT_PROVIDER] = copyPasteProvider
         sink[PlatformDataKeys.COPY_PROVIDER] = copyPasteProvider
         sink[PlatformDataKeys.PASTE_PROVIDER] = copyPasteProvider
@@ -76,7 +75,7 @@ internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowP
     override fun treeNodesInserted(e: TreeModelEvent?) = Unit
     override fun treeNodesRemoved(e: TreeModelEvent?) = Unit
     override fun treeStructureChanged(e: TreeModelEvent?) {
-        if (e?.treePath?.lastPathComponent === context.model.root) {
+        if (e?.treePath?.lastPathComponent === tree.model.root) {
             restoreExpand()
         }
     }
