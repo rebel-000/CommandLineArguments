@@ -10,9 +10,18 @@ import javax.swing.tree.TreePath
 internal class ArgumentTreeModel() : TreeModel {
     private val listenerList = mutableListOf<TreeModelListener>()
     private val treeRoot = ArgumentTreeNodeBase("treeRoot")
+    private var _projectRoot: ArgumentContainer = ArgumentContainer(Messages.message("toolwindow.projectNode"))
     private var _sharedRoot: ArgumentContainer? = null
     val previewRoot = ArgumentTreeNodeBase(Messages.message("toolwindow.previewNode"))
-    val projectRoot = ArgumentContainer(Messages.message("toolwindow.projectNode"))
+
+    var projectRoot: ArgumentContainer
+        get() = _projectRoot
+        set(value) {
+            val index = treeRoot.getIndex(projectRoot)
+            rawRemove(_projectRoot)
+            _projectRoot = value
+            rawInsert(_projectRoot, treeRoot, index)
+        }
 
     var sharedRoot: ArgumentContainer?
         get() = _sharedRoot
@@ -20,9 +29,7 @@ internal class ArgumentTreeModel() : TreeModel {
             _sharedRoot?.let { rawRemove(it) }
             _sharedRoot = value
             _sharedRoot?.let {
-                val parent = projectRoot.parent as ArgumentTreeNodeBase
-                val index = parent.getIndex(projectRoot)
-                rawInsert(_sharedRoot!!, parent, index)
+                rawInsert(_sharedRoot!!, treeRoot, 1)
             }
         }
 
