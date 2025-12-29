@@ -53,10 +53,11 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         fun getInstanceIfCreated(project: Project?): ArgumentsService? = project?.serviceIfCreated()
     }
 
-
     private val _isArgumentsInvalid = AtomicBoolean(false)
     private val _isPreviewInvalid = AtomicBoolean(false)
 
+    @Volatile
+    private var _commonArguments: String = ""
     @Volatile
     private var _isEnabled = true
     @Volatile
@@ -171,12 +172,8 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 createAdapter(settings, true)
                     ?.takeIf { it.isTrusted() }
                     ?.let { adapter ->
-                        CollectArgsVisitor(adapter.predicate()).let { visitor ->
-                            model.sharedRoot?.traverse(visitor)
-                            model.projectRoot.traverse(visitor)
-                            adapter.setArguments(visitor.toString())
-                            adapter.onStart()
-                        }
+                        adapter.setArguments(_commonArguments)
+                        adapter.onStart()
                     }
             }
         }
@@ -428,21 +425,19 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
 
     private fun rebuildArguments() {
         if (isEnabled) {
-            val visitors = perSettingsData.mapNotNull { (_, it) ->
-                if (it.adapter?.enabled == true) {
-                    object : CollectArgsVisitor(it.adapter.predicate()) {
-                        val adapter: ArgumentsAdapter = it.adapter
-                    }
-                } else {
-                    null
+            val visitors = mutableListOf<Pair<ArgumentsAdapter?, CollectArgsVisitor>>()
+            perSettingsData.forEach { (_, it) ->
+                if (it.adapter?.enabled == true && it.adapter.isTrusted()) {
+                    visitors.add(it.adapter to CollectArgsVisitor(it.adapter.predicate()))
                 }
             }
+            visitors.add(null to CollectArgsVisitor { it.filters.all { (_, f) -> f.isEmpty() } })
             val multiVisitor = object : TraverseVisitor<ArgumentNode> {
                 private val skip = IntArray(visitors.size) { 0 }
                 override fun onEnter(node: ArgumentNode): Boolean {
                     var shouldEnter = false
                     for (i in visitors.indices) {
-                        if (skip[i] == 0 && visitors[i].onEnter(node)) {
+                        if (skip[i] == 0 && visitors[i].second.onEnter(node)) {
                             shouldEnter = true
                         } else {
                             skip[i]++
@@ -462,18 +457,24 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                         if (skip[i] > 0) {
                             skip[i]--
                         } else {
-                            visitors[i].onExit(node)
+                            visitors[i].second.onExit(node)
                         }
                     }
                 }
             }
             model.sharedRoot?.traverse(multiVisitor)
             model.projectRoot.traverse(multiVisitor)
-            for (visitor in visitors) {
-                if (visitor.adapter.enabled) {
+            for (it in visitors) {
+                val (adapter, visitor) = it
+                if (adapter == null) {
+                    _commonArguments = visitor.toString()
+                } else if (adapter.enabled) {
                     val value = visitor.toString()
-                    visitor.adapter.setArguments(value)
-                    perSettingsData[visitor.adapter.key]?.node?.setValue(value)
+                    adapter.setArguments(value)
+                    perSettingsData[adapter.key]?.let { (_, node) ->
+                        node.setValue(value)
+                        model.invalidate(node, false)
+                    }
                 }
             }
         }
