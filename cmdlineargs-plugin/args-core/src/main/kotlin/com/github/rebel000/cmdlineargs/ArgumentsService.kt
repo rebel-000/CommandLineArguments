@@ -69,13 +69,17 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
 
     private data class SettingsData(val adapter: ArgumentsAdapter?, val node: ConfigurationNode = ConfigurationNode())
 
+    private val _model = ArgumentTreeModel()
     private val perSettingsData = ConcurrentHashMap<String, SettingsData>()
     private val globalStorage: ArgumentsGlobalStorage.State get() = ArgumentsGlobalStorage.getInstance().state
     private val projectStorage: ArgumentsProjectStorage.State get() = ArgumentsProjectStorage.getInstance(project).state
     private val saveFlow = MutableSharedFlow<Unit>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     private var stateFilePath: String? = locateStateFile()
 
-    internal val model = ArgumentTreeModel()
+    internal val model: ArgumentTreeModel get() {
+        ApplicationManager.getApplication().assertIsDispatchThread()
+        return _model
+    }
 
     var isEnabled: Boolean
         get() = _isEnabled
@@ -113,7 +117,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     val revision: Int get() = _revision
 
     init {
-        model.addTreeModelListener(this)
+        _model.addTreeModelListener(this)
         coroScope.launch { saveFlow.debounce(DEFERRED_SAVE_DELAY).collectLatest { save() } }
         ApplicationManager.getApplication().invokeLater {
             reload()
@@ -202,52 +206,59 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             project.thisLogger().warn("[com.github.rebel000.cmdlineargs] $uniqueID already registered")
             return
         }
-        val adapter = createAdapter(s, false)?.also {
-            it.enabled = projectStorage.enabledConfigs.contains(uniqueID)
-            markDirty()
+        val adapter = createAdapter(s, false)?.apply {
+            enabled = projectStorage.enabledConfigs.contains(uniqueID)
         }
-        val node = ConfigurationNode().also {
-            it.configure(s, adapter, isEnabled, showExperimental)
-            it.setActive(false)
+        val node = ConfigurationNode().apply {
+            configure(s, adapter, isEnabled, showExperimental)
+            setActive(false)
         }
         perSettingsData[uniqueID] = SettingsData(adapter, node)
         invalidate(arguments = true, preview = true)
+        adapter?.let { markDirty() }
     }
 
     internal fun onRunConfigurationChanged(s: RunnerAndConfigurationSettings, existingId: String?) {
         val existingId = existingId ?: return
         val uniqueID = s.uniqueID
-        var invalidatePreview = false
-        if (uniqueID != existingId) {
-            if (projectStorage.enabledConfigs.remove(existingId)) {
-                projectStorage.enabledConfigs.add(uniqueID)
+        ApplicationManager.getApplication().invokeLater {
+            var invalidatePreview = false
+            if (uniqueID != existingId) {
+                if (projectStorage.enabledConfigs.remove(existingId)) {
+                    projectStorage.enabledConfigs.add(uniqueID)
+                }
+                perSettingsData.remove(existingId)?.let {
+                    model.rawRemove(it.node)
+                    perSettingsData[uniqueID] = it
+                    it.adapter?.invalidate()
+                    it.node.configure(s, it.adapter, isEnabled, showExperimental)
+                }
+                invalidatePreview = true
+                markDirty()
             }
-            perSettingsData.remove(existingId)?.let {
-                model.rawRemove(it.node)
-                perSettingsData[uniqueID] = it
-                it.adapter?.invalidate()
-                it.node.configure(s, it.adapter, isEnabled, showExperimental)
-            }
-            invalidatePreview = true
-            markDirty()
+            invalidate(arguments = true, preview = invalidatePreview)
         }
-        invalidate(arguments = true, preview = invalidatePreview)
     }
 
     internal fun onRunConfigurationRemoved(s: RunnerAndConfigurationSettings) {
-        markDirty()
         val uniqueID = s.uniqueID
-        perSettingsData.remove(uniqueID)?.let {
-            model.rawRemove(it.node)
+        ApplicationManager.getApplication().invokeLater {
+            perSettingsData.remove(uniqueID)?.let {
+                model.rawRemove(it.node)
+                markDirty()
+            }
+            projectStorage.enabledConfigs.remove(uniqueID)
         }
-        projectStorage.enabledConfigs.remove(uniqueID)
     }
 
     internal fun onRunConfigurationSelected(s: RunnerAndConfigurationSettings?) {
         RunManager.getInstanceIfCreated(project)?.let {
             val activeConfigurations = s?.getEffectiveConfigurations().orEmpty()
-            perSettingsData.forEach { (uniqueID, it) ->
-                it.node.setActive(activeConfigurations.contains(uniqueID))
+            ApplicationManager.getApplication().invokeLater {
+                perSettingsData.forEach { (uniqueID, it) ->
+                    it.node.setActive(activeConfigurations.contains(uniqueID))
+                    model.invalidate(it.node, false)
+                }
             }
         }
     }
