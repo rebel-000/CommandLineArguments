@@ -99,7 +99,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         get() = globalStorage.showExperimental
         set(value) {
             globalStorage.showExperimental = value
-            invalidatePreview()
+            onShowExperimentalChanged()
         }
 
     var showUnsupported
@@ -210,7 +210,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
             markDirty()
         }
         val node = ConfigurationNode().also {
-            it.configure(s, adapter, isEnabled)
+            it.configure(s, adapter, isEnabled, showExperimental)
             it.setActive(false)
         }
         perSettingsData[uniqueID] = SettingsData(adapter, node)
@@ -229,7 +229,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
                 model.rawRemove(it.node)
                 perSettingsData[uniqueID] = it
                 it.adapter?.invalidate()
-                it.node.configure(s, it.adapter, isEnabled)
+                it.node.configure(s, it.adapter, isEnabled, showExperimental)
             }
             invalidatePreview()
             markDirty()
@@ -352,6 +352,19 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         return null
     }
 
+    private fun onShowExperimentalChanged() {
+        perSettingsData.forEach { (_, it) ->
+            val (adapter, node) = it
+            adapter?.settings?.let { settings ->
+                if (adapter.isExperimental() && node.isExperimental != showExperimental) {
+                    node.configure(settings, adapter, isEnabled, showExperimental)
+                    model.invalidate(node, false)
+                }
+            }
+        }
+        invalidateArguments()
+    }
+
     private fun reloadShared() {
         val reader = if (revision >= 3) {
             XmlObjectReader(globalStorage.sharedArguments)
@@ -468,7 +481,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
         for ((uniqueID, it) in allConfigs) {
             val (adapter, node) = it
             activeConfigurations?.let { node.setActive(it.contains(uniqueID)) }
-            if (adapter != null || showUnsupported) {
+            if (showUnsupported || adapter?.isVisible(showExperimental) == true) {
                 if (node.parent == null) {
                     val index = if (after != null) {
                         model.previewRoot.getIndex(after) + 1
@@ -539,7 +552,7 @@ class ArgumentsService(val project: Project, coroScope: CoroutineScope) : Dispos
     override fun treeNodesChanged(e: TreeModelEvent?) {
         e?.children
             ?.filterIsInstance<ArgumentTreeNodeBase>()
-            ?.ifNotEmpty { ApplicationManager.getApplication().invokeLater { onArgumentsChanged(this) } }
+            ?.ifNotEmpty { onArgumentsChanged(this) }
     }
 
     override fun treeNodesInserted(e: TreeModelEvent?) {

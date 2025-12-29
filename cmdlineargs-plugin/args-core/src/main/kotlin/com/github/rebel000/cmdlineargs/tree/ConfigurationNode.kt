@@ -31,11 +31,13 @@ internal open class ConfigurationNode : ArgumentTreeNodeBase("<error>") {
         icon = AllIcons.Run.ShowIgnored
     }
 
-    fun configure(settings: RunnerAndConfigurationSettings, adapter: ArgumentsAdapter?, serviceEnabled: Boolean) {
+    fun configure(settings: RunnerAndConfigurationSettings, adapter: ArgumentsAdapter?, serviceEnabled: Boolean, showExperimental: Boolean) {
+        val adapter = adapter?.takeIf { it.isVisible(showExperimental) }
         settingsID = settings.uniqueID
         _controlType = ControlType.NONE
         if (adapter != null) {
             isEnabled = true
+            isChecked = adapter.enabled
             isExperimental = adapter.isExperimental()
             isServiceEnabled = serviceEnabled
             isTrusted = adapter.isTrusted()
@@ -45,6 +47,7 @@ internal open class ConfigurationNode : ArgumentTreeNodeBase("<error>") {
             update()
         } else {
             isEnabled = false
+            isChecked = false
             isExperimental = false
             isServiceEnabled = false
             isTrusted = false
