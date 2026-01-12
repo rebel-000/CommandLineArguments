@@ -218,8 +218,9 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
         val adapter = createAdapter(s, false)?.apply {
             enabled = projectStorage.enabledConfigs.contains(uniqueID)
         }
+        val serviceEnabled = isEnabled
         val node = ConfigurationNode().apply {
-            configure(s, adapter, isEnabled, showExperimental)
+            configure(s, adapter, serviceEnabled, showExperimental)
             setActive(false)
         }
         perSettingsData[uniqueID] = SettingsData(adapter, node)
