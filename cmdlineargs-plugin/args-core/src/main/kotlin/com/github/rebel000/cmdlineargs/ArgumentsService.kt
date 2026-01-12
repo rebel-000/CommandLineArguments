@@ -552,7 +552,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
                     perSettingsData[it]?.adapter?.let { adapter ->
                         if (adapter.enabled != node.isChecked) {
                             adapter.enabled = node.isChecked
-                            if (node.isChecked) {
+                            if (node.isChecked && isEnabled) {
                                 val visitor = CollectArgsVisitor(adapter.predicate())
                                 model.sharedRoot?.traverse(visitor)
                                 model.projectRoot.traverse(visitor)
