@@ -6,7 +6,7 @@
 
 ### Fixed
 
-- Some fixes, I guess
+- Some bugs, I guess
 
 ## 3.0.0-eap.2 - 2025-12-16
 
