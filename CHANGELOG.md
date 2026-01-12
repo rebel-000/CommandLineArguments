@@ -4,9 +4,31 @@
 
 ## Unreleased
 
+### Added
+
+### Changed
+
+### Removed
+
+### Fixed
+
+## 3.0.0-eap.3 - 2026-01-12
+
 ### Fixed
 
 - Some bugs, I guess
+- Optimize copy/expand/preview for large trees 
+- Shared arguments visibility on reload
+- Restore expand state on reload
+
+### Added
+
+- Run configuration arguments preview
+- CLion, Java/Kotlin, Python, Rust support
+
+### Changed
+
+- State file renamed from <solution>.ddargs.json to <solution>.cmdlineargs.json for Rider
 
 ## 3.0.0-eap.2 - 2025-12-16
 
