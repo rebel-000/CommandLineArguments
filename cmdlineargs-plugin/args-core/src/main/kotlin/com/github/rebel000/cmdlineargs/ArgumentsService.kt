@@ -16,17 +16,14 @@ import com.intellij.execution.multilaunch.MultiLaunchConfiguration
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.components.serviceIfCreated
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.util.io.copy
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.jetbrains.kotlin.utils.addToStdlib.ifFalse
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import java.io.File
@@ -51,8 +48,6 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     }
 
     private val _isArgumentsInvalid = AtomicBoolean(false)
-    private val _isPendingSave = AtomicBoolean(false)
-    private val _isProcessingSave = AtomicBoolean(false)
     private val _isPreviewInvalid = AtomicBoolean(false)
 
     @Volatile
@@ -125,17 +120,8 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     }
 
     override fun dispose() {
-        runBlocking {
-            _saveJob?.let {
-                if (_isProcessingSave.compareAndSet(false, true)) {
-                    it.cancel()
-                    save()
-                    _isProcessingSave.set(false)
-                } else {
-                    it.join()
-                }
-            }
-        }
+        _saveJob?.cancel()
+        save()
     }
 
     fun getAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
@@ -445,13 +431,11 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     }
 
     private fun requestSave() {
-        _isPendingSave.set(true)
         _saveJob?.cancel()
         _saveJob = cs.launch {
             delay(DEFERRED_SAVE_DELAY)
-            if (_isProcessingSave.compareAndSet(false, true)) {
+            withContext(Dispatchers.EDT){
                 save()
-                _isProcessingSave.set(false)
             }
         }
     }
