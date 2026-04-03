@@ -10,7 +10,7 @@ import javax.swing.tree.TreePath
 import kotlin.math.min
 
 internal class MoveDownAction : DumbAwareAction(), TreeAction {
-    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext {
+    override fun actionPerformed(e: AnActionEvent): Unit = e.withArgumentDataContext {
         val selectedNodes = tree.selectedNodesNoRecursion<ArgumentNode>()
         var anchor: ArgumentTreeNodeBase = selectedNodes[selectedNodes.count() - 1]
         var parent = anchor.parent as? ArgumentContainer ?: return

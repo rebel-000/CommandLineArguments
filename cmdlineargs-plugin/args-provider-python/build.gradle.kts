@@ -8,15 +8,15 @@ plugins {
 dependencies {
     intellijPlatform{
         if (tryGetPluginProperty("minimal-build-environment")?.toBoolean() == true) {
-            create(ppString("platform.type").toIntelliJPlatformType(), ppString("platform.version")) {
+            create(IntelliJPlatformType.IntellijIdea, ppString("platform.version")) {
                 useInstaller = false
-                useCustomCache = true
+                useCache = true
             }
             compatiblePlugins("PythonCore")
         } else {
-            create(IntelliJPlatformType.PyCharmCommunity, ppString("platform.version")) {
+            create(IntelliJPlatformType.PyCharm, ppString("platform.version")) {
                 useInstaller = false
-                useCustomCache = true
+                useCache = true
             }
 
             bundledPlugins("PythonCore")

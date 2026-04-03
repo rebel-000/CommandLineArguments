@@ -1,3 +1,4 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.toIntelliJPlatformType
 
 plugins {
@@ -6,9 +7,9 @@ plugins {
 
 dependencies {
     intellijPlatform{
-        create(ppString("platform.type").toIntelliJPlatformType(), ppString("platform.version")) {
+        create(IntelliJPlatformType.IntellijIdea, ppString("platform.version")) {
             useInstaller = false
-            useCustomCache = true
+            useCache = true
         }
 
         bundledPlugins("com.intellij.java")

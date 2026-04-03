@@ -9,7 +9,7 @@ import com.intellij.openapi.project.DumbAwareAction
 import javax.swing.tree.TreePath
 
 internal class MoveUpAction : DumbAwareAction(), TreeAction {
-    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext {
+    override fun actionPerformed(e: AnActionEvent): Unit = e.withArgumentDataContext {
         val selectedNodes = tree.selectedNodesNoRecursion<ArgumentNode>()
         if (selectedNodes.isEmpty()) {
             return

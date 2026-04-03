@@ -16,7 +16,7 @@ plugins {
 
 dependencies {
     intellijPlatform {
-        create(ppString("platform.type"), ppString("platform.version")) {
+        create(IntelliJPlatformType.IntellijIdea, ppString("platform.version")) {
             useInstaller = false
         }
 
@@ -96,7 +96,7 @@ intellijPlatform {
                 val ideType = providers
                     .environmentVariable("PLUGIN_VERIFY_IDE")
                     .getOrElse(ppString("platform.type"))
-                    .toIntelliJPlatformType()
+                    .toIntelliJPlatformType(ppString("platform.version"))
                 create(ideType, ppString("platform.version")) {
                     useInstaller = false
                 }
@@ -104,7 +104,7 @@ intellijPlatform {
                 select {
                     channels = listOf(Channel.RELEASE, Channel.EAP, Channel.RC)
                     types.convention(listOf(
-                        IntelliJPlatformType.IntellijIdeaUltimate,
+                        IntelliJPlatformType.IntellijIdea,
                         IntelliJPlatformType.CLion,
                         IntelliJPlatformType.PyCharmProfessional,
                         IntelliJPlatformType.Rider,
@@ -164,7 +164,7 @@ intellijPlatformTesting {
             }
         })
 
-        runPluginWithIdeTask(IntelliJPlatformType.IntellijIdeaUltimate) {
+        runPluginWithIdeTask(IntelliJPlatformType.IntellijIdea) {
             plugins {
                 compatiblePlugins("org.toml.lang", "PythonCore")
                 if (tryGetPluginProperty("minimal-build-environment")?.toBoolean() == true) {

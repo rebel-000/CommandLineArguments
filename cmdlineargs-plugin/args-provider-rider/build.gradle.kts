@@ -8,10 +8,11 @@ dependencies {
     intellijPlatform{
         create(IntelliJPlatformType.Rider, ppString("rider.platform.version")) {
             useInstaller = false
-            useCustomCache = true
+            useCache = true
         }
 
         bundledPlugins("com.jetbrains.rider-cpp")
+        bundledModule("intellij.rider.debugger.shared")
         jetbrainsRuntime()
     }
 

@@ -44,12 +44,15 @@ internal class RustArgumentAdapterProviderProvider : ArgumentsAdapterProviderExt
         override fun setArguments(value: String) {
             val config = settings?.configuration as? CargoCommandConfiguration ?: return
             val holder = config.parametersHolder ?: return
-            val commandArguments = holder.commandArguments.joinToString(" ")
-            config.programParameters = if (value.isNotEmpty()) {
-                "${holder.command} $commandArguments -- $value"
-            } else {
-                "${holder.command} $commandArguments"
+            val command = StringBuilder()
+//            holder.toolchain?.let { command.append("+$it") }
+            holder.command?.let { command.append(" $it") }
+            command.append(holder.commandParameters.printParameters())
+            if (value.isNotBlank()) {
+                command.append(" -- ")
+                command.append(value)
             }
+            config.programParameters = command.toString()
         }
     }
 }

@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+### Added
+
+- 2026.1 support
+
 ### Fixed
 
 - Some bugs, I guess

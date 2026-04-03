@@ -8,15 +8,15 @@ plugins {
 dependencies {
     intellijPlatform{
         if (tryGetPluginProperty("minimal-build-environment")?.toBoolean() == true) {
-            create(ppString("platform.type").toIntelliJPlatformType(), ppString("platform.version")) {
+            create(IntelliJPlatformType.IntellijIdea, ppString("platform.version")) {
                 useInstaller = false
-                useCustomCache = true
+                useCache = true
             }
             compatiblePlugins("com.jetbrains.rust")
         } else {
             create(IntelliJPlatformType.RustRover, ppString("platform.version")) {
                 useInstaller = false
-                useCustomCache = true
+                useCache = true
             }
 
             bundledPlugins("com.jetbrains.rust")

@@ -26,7 +26,7 @@ tasks {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_21
             languageVersion = KotlinVersion.DEFAULT
-            apiVersion = KotlinVersion.KOTLIN_1_8
+            apiVersion = KotlinVersion.KOTLIN_2_3
             freeCompilerArgs = listOf("-Xjvm-default=all")
         }
     }

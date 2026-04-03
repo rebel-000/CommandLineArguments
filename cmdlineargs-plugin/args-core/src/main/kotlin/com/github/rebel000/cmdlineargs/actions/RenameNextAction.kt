@@ -9,7 +9,7 @@ import com.intellij.openapi.project.DumbAwareAction
 import javax.swing.tree.TreePath
 
 internal class RenameNextAction : DumbAwareAction() {
-    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext {
+    override fun actionPerformed(e: AnActionEvent): Unit = e.withArgumentDataContext {
         val node = (tree.editingPath?.lastPathComponent) as? ArgumentNode
         val parent = node?.parent
         if (parent !is ArgumentTreeNodeBase) {

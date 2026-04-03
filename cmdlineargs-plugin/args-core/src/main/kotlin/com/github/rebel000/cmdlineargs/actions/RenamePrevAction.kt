@@ -10,7 +10,7 @@ import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.TreePath
 
 internal class RenamePrevAction : DumbAwareAction() {
-    override fun actionPerformed(e: AnActionEvent) = e.withArgumentDataContext {
+    override fun actionPerformed(e: AnActionEvent): Unit = e.withArgumentDataContext {
         val node = (tree.editingPath?.lastPathComponent) as ArgumentNode?
         val parent = node?.parent
         if (parent !is ArgumentTreeNodeBase) {

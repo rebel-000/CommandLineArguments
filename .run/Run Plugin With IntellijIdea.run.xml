@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Run Plugin With IntellijIdeaUltimate" type="GradleRunConfiguration" factoryName="Gradle">
+  <configuration default="false" name="Run Plugin With IntellijIdea" type="GradleRunConfiguration" factoryName="Gradle">
     <log_file alias="idea.log" path="$PROJECT_DIR$/build/cmdlineargs-plugin/idea-sandbox/intellijideacommunity-sandbox-*/log_runIntellijIdeaCommunity/idea.log" />
     <ExternalSystemSettings>
       <option name="executionName" />
@@ -11,15 +11,18 @@
       </option>
       <option name="taskNames">
         <list>
-          <option value=":cmdlineargs-plugin:runPluginWithIntellijIdeaUltimate" />
+          <option value=":cmdlineargs-plugin:runPluginWithIntellijIdea" />
         </list>
       </option>
       <option name="vmOptions" value="" />
     </ExternalSystemSettings>
     <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
     <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+    <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
     <DebugAllEnabled>false</DebugAllEnabled>
     <RunAsTest>false</RunAsTest>
+    <GradleProfilingDisabled>false</GradleProfilingDisabled>
+    <GradleCoverageDisabled>false</GradleCoverageDisabled>
     <method v="2" />
   </configuration>
 </component>
