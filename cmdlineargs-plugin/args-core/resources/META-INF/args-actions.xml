@@ -36,6 +36,7 @@
         </group>
 
         <group id="cmdlineargs.toolwindow.popup" searchable="false">
+            <action id="cmdlineargs.hide-config" class="com.github.rebel000.cmdlineargs.actions.HideConfigurationAction" />
             <group id="cmdlineargs.toolwindow.popup.trust" class="com.github.rebel000.cmdlineargs.actions.TrustActionGroup" searchable="false" />
             <reference ref="cmdlineargs.popup.new" />
             <separator />

@@ -8,8 +8,19 @@ import com.intellij.openapi.project.DumbAwareToggleAction
 
 internal class ViewActionGroup : DefaultActionGroup() {
     init {
+        add(ShowHiddenAction())
         add(ShowExperimentalAction())
         add(ShowUnsupportedAction())
+    }
+
+    private class ShowHiddenAction : DumbAwareToggleAction() {
+        init {
+            templatePresentation.text = ActionMessages.message("action.cmdlineargs.view.show-hidden.text")
+        }
+
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
+        override fun isSelected(e: AnActionEvent): Boolean = e.myService?.showHidden == true
+        override fun setSelected(e: AnActionEvent, enabled: Boolean) = e.myService?.showHidden = enabled
     }
 
     private class ShowExperimentalAction : DumbAwareToggleAction() {
@@ -28,7 +39,7 @@ internal class ViewActionGroup : DefaultActionGroup() {
         }
 
         override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
-        override fun isSelected(e: AnActionEvent): Boolean = e.myService?.showUnsupported == true
-        override fun setSelected(e: AnActionEvent, enabled: Boolean) = e.myService?.showUnsupported = enabled
+        override fun isSelected(e: AnActionEvent): Boolean = e.myService?.showNotSupported == true
+        override fun setSelected(e: AnActionEvent, enabled: Boolean) = e.myService?.showNotSupported = enabled
     }
 }

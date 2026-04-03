@@ -15,19 +15,18 @@ abstract class ArgumentsAdapter(settings: RunnerAndConfigurationSettings) {
         }
     }
 
+    private var _settings = WeakReference(settings)
     private var _key = settings.uniqueID
     private var _name = settings.name
-    private val _settings = WeakReference(settings)
-    private val projectStorage: ArgumentsProjectStorage.State?
-        get() = settings?.let { ArgumentsProjectStorage.getInstance(it.configuration.project).state }
+    private var _trusted = false
 
+    var enabled: Boolean = false
     val key: String get() = _key
     val type = settings.type
     val name: String get() = _name
-    val settings: RunnerAndConfigurationSettings?
-        get() = _settings.get()
+    val settings: RunnerAndConfigurationSettings? get() = _settings.get()
+    val service: ArgumentsService? get() = settings?.configuration?.project?.let { ArgumentsService.getInstance(it) }
 
-    var enabled = false
     abstract fun isExperimental(): Boolean
     abstract fun getArguments(): String
     abstract fun setArguments(value: String)
@@ -42,56 +41,54 @@ abstract class ArgumentsAdapter(settings: RunnerAndConfigurationSettings) {
 
     fun isTrusted(): Boolean {
         if (isExperimental()) {
-            return projectStorage?.let {
-                it.trustedConfigTypes.contains(type.id) || it.trustedConfigs.contains(key)
-            } == true
+            return isTrustedByName() == true || isTrustedByType() == true
         }
         return true
     }
     
-    internal fun invalidate() {
-        settings?.let {
-            enabled = projectStorage?.enabledConfigs?.contains(it.uniqueID) == true
+    internal fun invalidate(s: RunnerAndConfigurationSettings) {
+        s.let {
             _key = it.uniqueID
             _name = it.name
         }
+        _settings = WeakReference(s)
     }
 
     internal fun isTrustedByName(): Boolean? {
         if (isExperimental()) {
-            return projectStorage?.trustedConfigs?.contains(key) == true
+            return _trusted
         }
         return null
     }
 
     internal fun isTrustedByType(): Boolean? {
         if (isExperimental()) {
-            return projectStorage?.trustedConfigTypes?.contains(type.id) == true
+            return service?.isTypeTrusted(type.id)
         }
         return null
     }
 
     internal fun setTrustedByName(trusted: Boolean) {
         if (isExperimental()) {
-            if (trusted) {
-                projectStorage?.trustedConfigs?.add(key)
-            } else {
-                projectStorage?.trustedConfigs?.remove(key)
-            }
+            _trusted = trusted
         }
     }
 
     internal fun setTrustedByType(trusted: Boolean) {
         if (isExperimental()) {
-            if (trusted) {
-                projectStorage?.trustedConfigTypes?.add(type.id)
-            } else {
-                projectStorage?.trustedConfigTypes?.remove(type.id)
-            }
+            service?.setTypeTrusted(type.id, trusted)
         }
     }
 
-    internal fun isVisible(showExperimental: Boolean): Boolean {
-        return showExperimental || !isExperimental() || isTrusted()
+    internal fun fireOnStart() {
+        if (enabled && isTrusted()) {
+            onStart()
+        }
+    }
+
+    internal fun fireOnCleanup() {
+        if (enabled && isTrusted()) {
+            onCleanup()
+        }
     }
 }

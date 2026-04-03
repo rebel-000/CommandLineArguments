@@ -33,6 +33,8 @@ internal class ArgumentDataContext(val service: ArgumentsService, val tree: Argu
     @Volatile
     var treeSelectedExperimental: Int = 0
     @Volatile
+    var treeSelectedHidden: Int = 0
+    @Volatile
     var treeSelectedContainers: Int = 0
     @Volatile
     var treeSelectedArguments: Int = 0
@@ -59,6 +61,7 @@ internal class ArgumentDataContext(val service: ArgumentsService, val tree: Argu
         }
         for (path in tree.selectionPaths.orEmpty()) {
             (path.lastPathComponent as? ConfigurationNode)
+                ?.takeIf { it.experimental && it.trusted }
                 ?.settingsID
                 ?.let { service.findAdapter(it) }
                 ?.let { adapter ->
@@ -79,6 +82,7 @@ internal class ArgumentDataContext(val service: ArgumentsService, val tree: Argu
         treeSelectedContainers = 0
         treeSelectedConfigurations = 0
         treeSelectedExperimental = 0
+        treeSelectedHidden = 0
         treeSelectedCount = tree.selectionCount
         for (path in tree.selectionPaths.orEmpty()) {
             when (val node = path.lastPathComponent) {
@@ -93,14 +97,16 @@ internal class ArgumentDataContext(val service: ArgumentsService, val tree: Argu
 
                 is ConfigurationNode -> {
                     treeSelectedConfigurations++
-                    if (node.isExperimental) {
+                    if (!node.visible) {
+                        treeSelectedHidden++
+                    }
+                    if (node.experimental) {
                         treeSelectedExperimental++
-                        if (!treeIsTrustedByName || !treeIsTrustedByType) {
-                            node.settingsID
-                                ?.let { service.findAdapter(it) }
-                                ?.let {
-                                    treeIsTrustedByName = treeIsTrustedByName || (it.isTrustedByName() == true)
-                                    treeIsTrustedByType = treeIsTrustedByType || (it.isTrustedByType() == true)
+                        if (node.trusted && (!treeIsTrustedByName || !treeIsTrustedByType)) {
+                            node.settingsID.let { service.findAdapter(it) }
+                                ?.let { adapter ->
+                                    treeIsTrustedByName = treeIsTrustedByName || (adapter.isTrustedByName() == true)
+                                    treeIsTrustedByType = treeIsTrustedByType || (adapter.isTrustedByType() == true)
                                 }
                         }
                     }

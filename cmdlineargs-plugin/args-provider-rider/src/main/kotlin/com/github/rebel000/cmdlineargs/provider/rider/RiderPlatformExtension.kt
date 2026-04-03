@@ -20,7 +20,7 @@ class RiderPlatformExtension : PlatformExtension {
             ?.allSettings
             .orEmpty()
             .mapNotNull {
-                it.takeIf { service.getAdapter(it)?.isTrusted() == true }?.getQualifiedFilterName()
+                it.takeIf { service.getAdapter(it) != null }?.getQualifiedFilterName()
             }.distinct()
         val configurationsAndPlatformsCollection =
             project.solution.solutionProperties.configurationsAndPlatformsCollection.valueOrEmpty()

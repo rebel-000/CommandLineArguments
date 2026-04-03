@@ -63,7 +63,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     @Volatile
     private var _saveJob: Job? = null
 
-    private data class SettingsData(val adapter: ArgumentsAdapter?, val node: ConfigurationNode = ConfigurationNode())
+    private data class SettingsData(val adapter: ArgumentsAdapter?, val node: ConfigurationNode)
 
     private val _model = ArgumentTreeModel()
     private val perSettingsData = ConcurrentHashMap<String, SettingsData>()
@@ -95,14 +95,21 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
             }
         }
 
+    var showHidden
+        get() = globalStorage.showHidden
+        set(value) {
+            globalStorage.showHidden = value
+            invalidate(preview = true)
+        }
+
     var showExperimental
         get() = globalStorage.showExperimental
         set(value) {
             globalStorage.showExperimental = value
-            onShowExperimentalChanged()
+            invalidate(preview = true)
         }
 
-    var showUnsupported
+    var showNotSupported
         get() = globalStorage.showUnsupported
         set(value) {
             globalStorage.showUnsupported = value
@@ -125,8 +132,9 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     }
 
     fun getAdapter(s: RunnerAndConfigurationSettings): ArgumentsAdapter? {
-        val adapter = perSettingsData[s.uniqueID]?.adapter
-        return adapter?.takeIf { it.settings === s && it.isVisible(showExperimental) }
+        return perSettingsData[s.uniqueID]?.let { (adapter, node) ->
+            adapter?.takeIf { it.settings === s && node.visible && it.isTrusted() }
+        }
     }
 
     fun getArguments(s: RunnerAndConfigurationSettings): String {
@@ -147,7 +155,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
                     ?.allSettings
                     .orEmpty()
                     .mapNotNull { 
-                        it.takeIf { getAdapter(it)?.isTrusted() == true }?.getQualifiedFilterName()
+                        it.takeIf { getAdapter(it) != null }?.getQualifiedFilterName()
                     }.distinct()
             )
         )
@@ -157,8 +165,30 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
         return perSettingsData[uniqueID]?.adapter
     }
 
-    internal fun markDirty() {
-        _revision++
+    internal fun isTypeTrusted(typeID: String): Boolean {
+        return projectStorage.trustedConfigTypes.contains(typeID)
+    }
+
+    internal fun setTypeTrusted(typeID: String, trusted: Boolean) {
+        if (trusted) {
+            projectStorage.trustedConfigTypes.add(typeID)
+        } else {
+            projectStorage.trustedConfigTypes.remove(typeID)
+        }
+        invalidate(preview = true)
+    }
+
+    internal fun onConfigurationsVisibilityChanged(invalidateTrust: Boolean) {
+        if (invalidateTrust) {
+            perSettingsData.forEach { (_, it) ->
+                val trusted = it.adapter?.isTrusted() ?: false
+                if (it.node.trusted != trusted) {
+                    it.node.trusted = trusted
+                    model.invalidate(it.node, false)
+                }
+            }
+        }
+        invalidate(preview = true)
     }
 
     internal fun onProcessStarting(env: ExecutionEnvironment) {
@@ -166,13 +196,14 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
         if (isEnabled && settings != null) {
             val adapter = getAdapter(settings)
             if (adapter != null) {
-                adapter.onStart()
-            } else if (env.isRunningCurrentFile) {
+                adapter.fireOnStart()
+            }
+            else if (env.isRunningCurrentFile) {
                 createAdapter(settings, true)
                     ?.takeIf { it.isTrusted() }
                     ?.let { adapter ->
                         adapter.setArguments(_commonArguments)
-                        adapter.onStart()
+                        adapter.fireOnStart()
                     }
             }
         }
@@ -181,14 +212,14 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     internal fun onProcessNotStarted(env: ExecutionEnvironment) {
         val settings = env.runnerAndConfigurationSettings
         if (isEnabled && settings != null) {
-            getAdapter(settings)?.onCleanup()
+            getAdapter(settings)?.fireOnCleanup()
         }
     }
 
     internal fun onProcessStarted(env: ExecutionEnvironment) {
         val settings = env.runnerAndConfigurationSettings
         if (isEnabled && settings != null) {
-            getAdapter(settings)?.onCleanup()
+            getAdapter(settings)?.fireOnCleanup()
         }
     }
 
@@ -201,17 +232,16 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
             project.thisLogger().warn("[com.github.rebel000.cmdlineargs] $uniqueID already registered")
             return
         }
-        val adapter = createAdapter(s, false)?.apply {
+        val adapter = createAdapter(s, false)?.apply { 
             enabled = projectStorage.enabledConfigs.contains(uniqueID)
+            setTrustedByName(projectStorage.trustedConfigs.contains(uniqueID))
         }
-        val serviceEnabled = isEnabled
-        val node = ConfigurationNode().apply {
-            configure(s, adapter, serviceEnabled, showExperimental)
-            setActive(false)
+        val node = ConfigurationNode(adapter, s).apply {
+            paused = !_isEnabled
+            visible = !projectStorage.hiddenConfigs.contains(s.uniqueID)
         }
         perSettingsData[uniqueID] = SettingsData(adapter, node)
         invalidate(arguments = true, preview = true)
-        adapter?.let { markDirty() }
     }
 
     internal fun onRunConfigurationChanged(s: RunnerAndConfigurationSettings, existingId: String?) {
@@ -220,17 +250,17 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
         ApplicationManager.getApplication().invokeLater {
             var invalidatePreview = false
             if (uniqueID != existingId) {
-                if (projectStorage.enabledConfigs.remove(existingId)) {
-                    projectStorage.enabledConfigs.add(uniqueID)
-                }
                 perSettingsData.remove(existingId)?.let {
                     model.rawRemove(it.node)
                     perSettingsData[uniqueID] = it
-                    it.adapter?.invalidate()
-                    it.node.configure(s, it.adapter, isEnabled, showExperimental)
+                    it.adapter?.invalidate(s)
+                    it.node.settingsID = s.uniqueID
+                    it.node.text = s.getQualifiedDisplayName()
+                    it.adapter?.let { adapter -> 
+                        it.node.value = adapter.getArguments()
+                    }
                 }
                 invalidatePreview = true
-                markDirty()
             }
             invalidate(arguments = true, preview = invalidatePreview)
         }
@@ -241,9 +271,8 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
         ApplicationManager.getApplication().invokeLater {
             perSettingsData.remove(uniqueID)?.let {
                 model.rawRemove(it.node)
-                markDirty()
+                invalidate(preview = true)
             }
-            projectStorage.enabledConfigs.remove(uniqueID)
         }
     }
 
@@ -252,7 +281,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
             val activeConfigurations = s?.getEffectiveConfigurations().orEmpty()
             ApplicationManager.getApplication().invokeLater {
                 perSettingsData.forEach { (uniqueID, it) ->
-                    it.node.setActive(activeConfigurations.contains(uniqueID))
+                    it.node.active = activeConfigurations.contains(uniqueID)
                     model.invalidate(it.node, false)
                 }
             }
@@ -318,10 +347,13 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
                 rebuildArguments()
             }
         }
-        if (preview && _isPreviewInvalid.compareAndSet(false, true)) {
-            ApplicationManager.getApplication().invokeLater {
-                _isPreviewInvalid.set(false)
-                rebuildPreview()
+        if (preview) {
+            _revision++
+            if (_isPreviewInvalid.compareAndSet(false, true)) {
+                ApplicationManager.getApplication().invokeLater {
+                    _isPreviewInvalid.set(false)
+                    rebuildPreview()
+                }
             }
         }
     }
@@ -347,24 +379,11 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
 
     private fun onEnabledChanged() {
         perSettingsData.forEach { (_, it) ->
-            it.node.setServiceEnabled(_isEnabled)
+            it.node.paused = !_isEnabled
             model.invalidate(it.node, false)
         }
         invalidate(arguments = true)
         requestSave()
-    }
-
-    private fun onShowExperimentalChanged() {
-        perSettingsData.forEach { (_, it) ->
-            val (adapter, node) = it
-            adapter?.settings?.let { settings ->
-                if (adapter.isExperimental() && node.isExperimental != showExperimental) {
-                    node.configure(settings, adapter, isEnabled, showExperimental)
-                    model.invalidate(node, false)
-                }
-            }
-        }
-        invalidate(preview = true)
     }
 
     private fun onShowSharedChanged() {
@@ -418,6 +437,14 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
             }
         }
         saveShared()
+        projectStorage.trustedConfigs = perSettingsData
+            .asSequence()
+            .mapNotNull{ (k, v) -> k.takeIf { v.adapter?.isTrustedByName() == true }}
+            .toMutableSet()
+        projectStorage.hiddenConfigs = perSettingsData
+            .asSequence()
+            .mapNotNull{ (k, v) -> k.takeIf { !v.node.visible }}
+            .toMutableSet()
     }
 
     private fun saveShared() {
@@ -444,7 +471,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
         if (isEnabled) {
             val visitors = mutableListOf<Pair<ArgumentsAdapter?, CollectArgsVisitor>>()
             perSettingsData.forEach { (_, it) ->
-                if (it.adapter?.enabled == true && it.adapter.isTrusted()) {
+                if (it.node.visible && it.node.isChecked && it.adapter?.isTrusted() == true) {
                     visitors.add(it.adapter to CollectArgsVisitor(it.adapter.predicate()))
                 }
             }
@@ -483,15 +510,15 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
             model.projectRoot.traverse(multiVisitor)
             for (it in visitors) {
                 val (adapter, visitor) = it
-                if (adapter == null) {
-                    _commonArguments = visitor.toString()
-                } else if (adapter.enabled) {
+                if (adapter != null) {
                     val value = visitor.toString()
                     adapter.setArguments(value)
                     perSettingsData[adapter.key]?.let { (_, node) ->
-                        node.setValue(value)
+                        node.value = value
                         model.invalidate(node, false)
                     }
+                } else {
+                    _commonArguments = visitor.toString()
                 }
             }
         }
@@ -505,8 +532,11 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
         var visibleNodes = 0
         for ((uniqueID, it) in allConfigs) {
             val (adapter, node) = it
-            activeConfigurations?.let { node.setActive(it.contains(uniqueID)) }
-            if (showUnsupported || adapter?.isVisible(showExperimental) == true) {
+            activeConfigurations?.let { node.active = it.contains(uniqueID) }
+            val visible = node.visible || showHidden
+            val trusted = adapter?.isTrusted() == true
+            val supported = adapter != null
+            if (visible && (trusted || (supported && showExperimental) || (!supported && showNotSupported))) {
                 if (node.parent == null) {
                     val index = if (after != null) {
                         model.previewRoot.getIndex(after) + 1
@@ -548,17 +578,18 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
                     shouldSave = true
                 }
 
-                is ConfigurationNode -> node.settingsID?.let {
+                is ConfigurationNode -> node.settingsID.let {
                     perSettingsData[it]?.adapter?.let { adapter ->
-                        if (adapter.enabled != node.isChecked) {
-                            adapter.enabled = node.isChecked
-                            if (node.isChecked && isEnabled) {
+                        val enabled = node.visible && node.isChecked
+                        if (adapter.enabled != enabled) {
+                            adapter.enabled = enabled
+                            if (isEnabled && enabled && adapter.isTrusted()) {
                                 val visitor = CollectArgsVisitor(adapter.predicate())
                                 model.sharedRoot?.traverse(visitor)
                                 model.projectRoot.traverse(visitor)
                                 val value = visitor.toString()
                                 adapter.setArguments(value)
-                                node.setValue(value)
+                                node.value = value
                             }
                             shouldSave = true
                         }

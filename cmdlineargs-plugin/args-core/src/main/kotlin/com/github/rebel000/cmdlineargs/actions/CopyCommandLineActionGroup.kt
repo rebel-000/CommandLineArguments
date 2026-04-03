@@ -23,11 +23,9 @@ internal class CopyCommandLineActionGroup : DefaultActionGroup() {
                 removeAll()
                 RunManager.getInstanceIfCreated(e.project!!)
                     ?.allSettings
-                    ?.forEach {
-                        service.getAdapter(it)?.let { adapter ->
-                            if (adapter.isTrusted()) {
-                                addAction(Action(it))
-                            }
+                    ?.forEach { s ->
+                        if (service.getAdapter(s) != null) {
+                            addAction(Action(s))
                         }
                     }
             }

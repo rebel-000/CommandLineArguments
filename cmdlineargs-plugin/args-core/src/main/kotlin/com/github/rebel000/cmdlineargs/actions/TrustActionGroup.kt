@@ -29,22 +29,19 @@ internal class TrustActionGroup : DefaultActionGroup() {
         protected abstract fun setTrusted(adapter: ArgumentsAdapter, value: Boolean)
         override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
         override fun setSelected(e: AnActionEvent, state: Boolean) = e.withArgumentDataContext {
-            var dirty = false
             for (path in tree.selectionPaths) {
                 (path.lastPathComponent as? ConfigurationNode)?.let { node ->
-                    node.settingsID
-                        ?.let { service.findAdapter(it) }
+                    node.settingsID.let { service.findAdapter(it) }
                         ?.let { adapter ->
                             setTrusted(adapter, state)
+                            node.isChecked = false
                             node.isEnabled = adapter.isTrusted()
-                            node.setTrusted(adapter.isTrusted())
-                            dirty = true
+                            node.trusted = adapter.isTrusted()
+                            model.invalidate(node, false)
                         }
                 }
             }
-            if (dirty) {
-                service.markDirty()
-            }
+            service.onConfigurationsVisibilityChanged(true)
         }
     }
 

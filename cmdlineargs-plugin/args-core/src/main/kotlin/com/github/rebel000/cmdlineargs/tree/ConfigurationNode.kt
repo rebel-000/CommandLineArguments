@@ -8,99 +8,78 @@ import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.icons.AllIcons
 import javax.swing.Icon
 
-internal open class ConfigurationNode : ArgumentTreeNodeBase("<error>") {
+internal open class ConfigurationNode(adapter: ArgumentsAdapter?, settings: RunnerAndConfigurationSettings) : ArgumentTreeNodeBase("<error>") {
     companion object {
-        const val MAX_NAME_LENGTH = 256
+        const val MAX_VALUE_LENGTH = 256
         const val MAX_TOOLTIP_LENGTH = 1152
     }
 
-    private var name: String = ""
-    private var myIcon: Icon? = null
+    private var _value: String = ""
 
-    private var _controlType: ControlType = ControlType.NONE
-    private var isServiceEnabled = false
-    private var isTrusted = true
+    var experimental: Boolean = false
+    var paused: Boolean = false
+    var settingsID: String
+    var trusted: Boolean = false
+    var visible: Boolean = true
 
-    var isExperimental: Boolean = false
-    var settingsID: String? = null
+    var active: Boolean
+        get() = style != null
+        set(value) {
+            style = when {
+                value && isEnabled -> SUCCESS_TEXT_ATTRIBUTES
+                value -> WARN_TEXT_ATTRIBUTES
+                else -> null
+            }
+        }
 
-    override val controlType get() = _controlType
+    var value: String
+        get() = _value
+        set(value) {
+            if (isEnabled) {
+                tooltip = if (experimental) {
+                    Messages.message("tooltip.untrusted")
+                } else {
+                    value.trimTo(MAX_TOOLTIP_LENGTH)
+                }
+                _value = value.trimTo(MAX_VALUE_LENGTH)
+            }
+        }
+
+    override val controlType get() = when {
+        trusted && visible -> ControlType.CHECKBOX
+        !visible || experimental -> ControlType.CHECKBOX_LOCKED
+        else -> ControlType.NONE
+    }
+
+    override var icon: Icon?
+        get() = when {
+            !visible -> AllIcons.Actions.Unshare
+            !trusted && !experimental -> AllIcons.Run.ShowIgnored
+            !trusted -> AllIcons.General.ShowWarning
+            !isChecked || paused -> AllIcons.Actions.Pause
+            else -> super.icon
+        }
+        set(value) {
+            super.icon = value
+        }
 
     init {
-        isEnabled = false
-        icon = AllIcons.Run.ShowIgnored
-    }
-
-    fun configure(settings: RunnerAndConfigurationSettings, adapter: ArgumentsAdapter?, serviceEnabled: Boolean, showExperimental: Boolean) {
-        val adapter = adapter?.takeIf { it.isVisible(showExperimental) }
+        icon = settings.configuration.icon
         settingsID = settings.uniqueID
-        _controlType = ControlType.NONE
+        text = settings.getQualifiedDisplayName()
         if (adapter != null) {
-            isEnabled = true
             isChecked = adapter.enabled
-            isExperimental = adapter.isExperimental()
-            isServiceEnabled = serviceEnabled
-            isTrusted = adapter.isTrusted()
-            name = settings.getQualifiedDisplayName()
-            myIcon = settings.type.icon
-            setValue(adapter.getArguments())
-            update()
+            isEnabled = adapter.isTrusted()
+            experimental = adapter.isExperimental()
+            trusted = adapter.isTrusted()
+            value = adapter.getArguments()
         } else {
-            isEnabled = false
             isChecked = false
-            isExperimental = false
-            isServiceEnabled = false
-            isTrusted = false
-            name = ""
-            myIcon = null
-            icon = AllIcons.Run.ShowIgnored
-            text = "${settings.getQualifiedDisplayName()}: ${Messages.message("toolwindow.notSupportedNode")}"
+            isEnabled = false
+            experimental = false
+            trusted = false
+            _value = Messages.message("toolwindow.notSupportedNode")
             tooltip = null
-        }
-    }
-
-    fun setActive(isActive: Boolean) {
-        style = when {
-            isActive && isEnabled -> SUCCESS_TEXT_ATTRIBUTES
-            isActive -> WARN_TEXT_ATTRIBUTES
-            else -> null
-        }
-    }
-
-    fun setServiceEnabled(value: Boolean) {
-        isServiceEnabled = value
-        update()
-    }
-
-    fun setTrusted(value: Boolean) {
-        isTrusted = value
-        update()
-    }
-
-    fun setValue(value: String) {
-        if (isEnabled) {
-            if (isExperimental) {
-                text = "*$name: ${value.trimTo(MAX_NAME_LENGTH)}"
-                tooltip = Messages.message("tooltip.untrusted")
-            } else {
-                text = "$name: ${value.trimTo(MAX_NAME_LENGTH)}"
-                tooltip = value.trimTo(MAX_TOOLTIP_LENGTH)
-            }
-        }
-    }
-
-    private fun update() {
-        if (isEnabled) {
-            icon = when {
-                !isTrusted -> AllIcons.General.ShowWarning
-                !isServiceEnabled || !isChecked -> AllIcons.Actions.Pause
-                else -> myIcon
-            }
-            _controlType = if (isTrusted) {
-                ControlType.CHECKBOX
-            } else {
-                ControlType.CHECKBOX_LOCKED
-            }
         }
     }
 
@@ -110,14 +89,5 @@ internal open class ConfigurationNode : ArgumentTreeNodeBase("<error>") {
         } else {
             this
         }
-    }
-
-    override fun setChecked(checked: Boolean) {
-        super.setChecked(checked)
-        update()
-    }
-
-    override fun toString(): String {
-        return text
     }
 }

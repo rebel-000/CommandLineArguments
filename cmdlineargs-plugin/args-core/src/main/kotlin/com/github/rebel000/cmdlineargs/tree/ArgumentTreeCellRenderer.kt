@@ -64,7 +64,19 @@ internal class ArgumentTreeCellRenderer : CheckboxTree.CheckboxTreeCellRenderer(
                 ArgumentTreeNodeBase.Companion.ControlType.RADIOBUTTON -> showRadioButton()
             }
             toolTipText = value.tooltip
-            textRenderer.append("$value   ", value.style ?: SimpleTextAttributes.REGULAR_ATTRIBUTES)
+            val style = value.style ?: SimpleTextAttributes.REGULAR_ATTRIBUTES
+            if (value is ConfigurationNode && value.experimental && value.trusted) {
+                textRenderer.append("*", style)
+            }
+            textRenderer.append(value.toString(), style)
+            if (value is ConfigurationNode) {
+                if (!value.trusted || !value.visible) {
+                    threeStateCheckBox.state = ThreeStateCheckBox.State.DONT_CARE
+                }
+                textRenderer.append(" : ")
+                textRenderer.append(value.value, style)
+            }
+            textRenderer.append("    ")
             if (value is ArgumentNode) {
                 threeStateCheckBox.state = value.state
                 radioButton.isSelected = value.state != ThreeStateCheckBox.State.NOT_SELECTED
