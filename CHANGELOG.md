@@ -7,23 +7,6 @@
 ### Added
 
 - 2026.1 support
-
-### Fixed
-
-- Some bugs, I guess
-
-## 3.0.0-eap.2 - 2025-12-16
-
-### Fixed
-
-- Optimize copy/expand/preview for large trees 
-- Shared arguments visibility on reload
-- Restore expand state on reload
-
-## 3.0.0-eap.1 - 2025-12-12
-
-### Added
-
 - Run configuration arguments preview
 - CLion, Java/Kotlin, Python, Rust support
 
