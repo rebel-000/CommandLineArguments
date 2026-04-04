@@ -1,5 +1,4 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
-import org.jetbrains.intellij.platform.gradle.toIntelliJPlatformType
 
 plugins {
     id("cmdlineargs-common-conventions")
@@ -18,7 +17,6 @@ dependencies {
                 useInstaller = false
                 useCache = true
             }
-
             bundledPlugins("com.intellij.clion", "com.intellij.clion-makefile")
         }
         jetbrainsRuntime()

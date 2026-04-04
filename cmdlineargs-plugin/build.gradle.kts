@@ -95,7 +95,7 @@ intellijPlatform {
             if (tryGetPluginProperty("minimal-build-environment")?.toBoolean() == true) {
                 val ideType = providers
                     .environmentVariable("PLUGIN_VERIFY_IDE")
-                    .getOrElse(ppString("platform.type"))
+                    .getOrElse("IU")
                     .toIntelliJPlatformType(ppString("platform.version"))
                 create(ideType, ppString("platform.version")) {
                     useInstaller = false
