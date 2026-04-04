@@ -3,7 +3,6 @@ package com.github.rebel000.cmdlineargs.tree
 import com.intellij.ide.dnd.*
 import com.intellij.openapi.Disposable
 import com.intellij.ui.awt.RelativeRectangle
-import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import java.awt.Component
 import java.awt.Point
 import javax.swing.tree.TreePath
@@ -29,10 +28,12 @@ internal class ArgumentTreeDnDSupport(val tree: ArgumentTree) : DnDDropHandler, 
             tree.selectionRows
                 ?.filter { tree.getPathForRow(it)?.lastPathComponent is ArgumentNode }
                 ?.sorted()
-                ?.ifNotEmpty {
-                    val srcIndex = tree.getClosestRowForLocation(info.point.x, info.point.y)
-                    if (srcIndex != -1) {
-                        return DnDDragStartBean(DragInfo(tree, srcIndex, this))
+                ?.let {
+                    if (it.isNotEmpty()) {
+                        val srcIndex = tree.getClosestRowForLocation(info.point.x, info.point.y)
+                        if (srcIndex != -1) {
+                            return DnDDragStartBean(DragInfo(tree, srcIndex, it))
+                        }
                     }
                 }
         }

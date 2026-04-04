@@ -92,27 +92,22 @@ intellijPlatform {
 
     pluginVerification {
         ides {
-            if (tryGetPluginProperty("minimal-build-environment")?.toBoolean() == true) {
-                val ideType = providers
-                    .environmentVariable("PLUGIN_VERIFY_IDE")
-                    .getOrElse("IU")
-                    .toIntelliJPlatformType(ppString("platform.version"))
-                create(ideType, ppString("platform.version")) {
-                    useInstaller = false
-                }
-            } else {
-                select {
-                    channels = listOf(Channel.RELEASE, Channel.EAP, Channel.RC)
-                    types.convention(listOf(
-                        IntelliJPlatformType.IntellijIdea,
-                        IntelliJPlatformType.CLion,
-                        IntelliJPlatformType.PyCharmProfessional,
-                        IntelliJPlatformType.Rider,
-                        IntelliJPlatformType.RustRover
-                    ))
-                    sinceBuild = ppString("sinceBuild")
-                    untilBuild = ppString("untilBuild")
-                }
+            val verifyIdeList = providers.environmentVariable("PLUGIN_VERIFY_IDE")
+                .getOrElse("")
+                .split(",")
+                .mapNotNull{ it.trim().lowercase().ifEmpty { null }}
+            val ideList = listOf(
+                IntelliJPlatformType.IntellijIdea,
+                IntelliJPlatformType.CLion,
+                IntelliJPlatformType.PyCharmProfessional,
+                IntelliJPlatformType.Rider,
+                IntelliJPlatformType.RustRover,
+            )
+            select {
+                channels = listOf(Channel.RELEASE, Channel.EAP, Channel.RC)
+                types.convention(ideList.filter { verifyIdeList.isEmpty() || it.code.lowercase() in verifyIdeList })
+                sinceBuild = ppString("sinceBuild")
+                untilBuild = ppString("untilBuild")
             }
         }
     }

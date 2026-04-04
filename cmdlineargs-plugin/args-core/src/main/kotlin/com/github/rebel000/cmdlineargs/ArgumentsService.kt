@@ -24,8 +24,6 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.util.io.copy
 import kotlinx.coroutines.*
-import org.jetbrains.kotlin.utils.addToStdlib.ifFalse
-import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import java.io.File
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -411,7 +409,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
                     if (node is ArgumentNode) {
                         node.filters = node.filters.filter { it.key in filters }.toMutableMap()
                     }
-                }.ifFalse { project.thisLogger().warn("[com.github.rebel000.cmdlineargs] Failed to deserialize shared arguments") }
+                }.let { if (!it) { project.thisLogger().warn("[com.github.rebel000.cmdlineargs] Failed to deserialize shared arguments") }}
             }
         }
     }
@@ -608,7 +606,11 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     override fun treeNodesChanged(e: TreeModelEvent?) {
         e?.children
             ?.filterIsInstance<ArgumentTreeNodeBase>()
-            ?.ifNotEmpty { onArgumentsChanged(this) }
+            ?.let { 
+                if (it.isNotEmpty()) {
+                    onArgumentsChanged(it)
+                }
+            }
     }
 
     override fun treeNodesInserted(e: TreeModelEvent?) {
