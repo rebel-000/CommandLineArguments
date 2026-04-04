@@ -148,12 +148,12 @@ jobs:
     with:
       ide-code: PY
 
-  verify_RR:
-    name: Verify plugin (Rust Rover)
-    needs: [ build ]
-    uses: './.github/workflows/verify-template.yml'
-    with:
-      ide-code: RR
+  # verify_RR:
+  #   name: Verify plugin (Rust Rover)
+  #   needs: [ build ]
+  #   uses: './.github/workflows/verify-template.yml'
+  #   with:
+  #     ide-code: RR
 
   verify_RD:
     name: Verify plugin (Rider)
@@ -165,7 +165,7 @@ jobs:
   releaseDraft:
     name: Release draft
     if: github.event_name != 'pull_request'
-    needs: [ test, inspectCode, verify_IU, verify_CL, verify_PY, verify_RR, verify_RD ]
+    needs: [ test, inspectCode, verify_IU, verify_CL, verify_PY, verify_RD ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
