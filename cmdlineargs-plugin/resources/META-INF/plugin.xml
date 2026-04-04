@@ -1,0 +1,11 @@
+<idea-plugin xmlns:xi="http://www.w3.org/2001/XInclude">
+    <id>com.github.rebel000.cmdlineargs</id>
+    <name>Command-Line Arguments</name>
+    <vendor>Dmytro Stasenko</vendor>
+
+    <xi:include href="/META-INF/args-core.xml"/>
+    <xi:include href="/META-INF/plugin-clion.xml"/>
+    <xi:include href="/META-INF/plugin-python.xml"/>
+    <xi:include href="/META-INF/plugin-rider.xml"/>
+    <xi:include href="/META-INF/plugin-rust.xml"/>
+</idea-plugin>

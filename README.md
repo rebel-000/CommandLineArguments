@@ -1,11 +1,14 @@
-# CommandlineArgumentsWCheckboxes
+<img src="cmdlineargs-plugin/resources/icons/tool-icon.svg" width="80" height="80" alt="icon" align="left" style="padding-right: 25px"/>
 
-![Build](https://github.com/rebel-000/CommandlineArgumentsWCheckboxes/workflows/Build/badge.svg)
+Command-Line Arguments
+===
+
+![Build](https://github.com/rebel-000/CommandLineArguments/workflows/Build/badge.svg)
 [![Version](https://img.shields.io/jetbrains/plugin/v/21226.svg)](https://plugins.jetbrains.com/plugin/21226)
 [![Downloads](https://img.shields.io/jetbrains/plugin/d/21226.svg)](https://plugins.jetbrains.com/plugin/21226)
 
 <!-- Plugin description -->
-The CommandlineArgumentsWCheckboxes plugin provides option to pass arguments to C++/dotNet run configurations in convenient matter by simply managing them in side toolwindow.
+The Command-Line Arguments plugin provides option to pass arguments to C++/dotNet run configurations in convenient matter by simply managing them in side toolwindow.
 this plugin was inspired by [Smart Command Line Arguments for Visual Studio](https://github.com/MBulli/SmartCommandlineArgs), works only with Rider.
 
 ## Usage
@@ -18,13 +21,13 @@ Open the window via:
 
 - Using IDE built-in plugin system:
   
-  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "CommandlineArgumentsWCheckboxes"</kbd> >
+  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "Command-Line Arguments"</kbd> >
   <kbd>Install Plugin</kbd>
   
 - Manually:
 
-  Download the [latest release](https://github.com/rebel-000/CommandlineArgumentsWCheckboxes/releases/latest) and install it manually using
-  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
+  Download the [latest release](https://github.com/rebel-000/CommandLineArguments/releases/latest) and install it manually using
+  <kbd>Settings/Preferences</kbd> - <kbd>Plugins</kbd> - <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
 
 ---

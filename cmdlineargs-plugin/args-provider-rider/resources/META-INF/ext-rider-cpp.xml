@@ -1,0 +1,10 @@
+<idea-plugin>
+    <resource-bundle>messages.CommandlineArgsRiderBundle</resource-bundle>
+    <extensions defaultExtensionNs="com.github.rebel000.cmdlineargs.extensions">
+        <adapterProvider implementation="com.github.rebel000.cmdlineargs.provider.rider.RiderConfigurationAdapterProvider" />
+        <platformExtension implementation="com.github.rebel000.cmdlineargs.provider.rider.RiderPlatformExtension" />
+    </extensions>
+    <extensions defaultExtensionNs="com.jetbrains.rider-cpp">
+        <run.configurations.cpp implementation="com.github.rebel000.cmdlineargs.provider.rider.CppConfigurationParametersExtension" />
+    </extensions>
+</idea-plugin>

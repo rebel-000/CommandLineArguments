@@ -1,0 +1,58 @@
+package com.github.rebel000.cmdlineargs.provider.rust
+
+import com.github.rebel000.cmdlineargs.ArgumentsAdapter
+import com.github.rebel000.cmdlineargs.extensions.ArgumentsAdapterProviderExtension
+import com.intellij.execution.RunnerAndConfigurationSettings
+import org.rust.cargo.runconfig.RsCommandConfiguration
+import org.rust.cargo.runconfig.command.CargoCommandConfiguration
+
+internal class RustArgumentAdapterProviderProvider : ArgumentsAdapterProviderExtension {
+    override fun createAdapter(s: RunnerAndConfigurationSettings, isRunningCurrentFile: Boolean): ArgumentsAdapter? {
+        if (isRunningCurrentFile) {
+            return null
+        }
+        return when (s.configuration) {
+            is CargoCommandConfiguration -> CargoCommandConfigurationAdapter(s)
+            is RsCommandConfiguration -> RsCommandConfigurationAdapter(s)
+            else -> null
+        }
+    }
+
+    class RsCommandConfigurationAdapter(s: RunnerAndConfigurationSettings) : ArgumentsAdapter(s) {
+        override fun isExperimental(): Boolean = true
+
+        override fun getArguments(): String {
+            val config = settings?.configuration as? RsCommandConfiguration ?: return ""
+            return config.programParameters ?: ""
+        }
+
+        override fun setArguments(value: String) {
+            val config = settings?.configuration as? RsCommandConfiguration ?: return
+            val command = config.programParameters?.split(" ")?.firstOrNull() ?: ""
+            config.programParameters = "$command $value"
+        }
+    }
+
+    class CargoCommandConfigurationAdapter(s: RunnerAndConfigurationSettings) : ArgumentsAdapter(s) {
+        override fun isExperimental(): Boolean = false
+
+        override fun getArguments(): String {
+            val config = settings?.configuration as? CargoCommandConfiguration ?: return ""
+            return config.programParameters ?: ""
+        }
+
+        override fun setArguments(value: String) {
+            val config = settings?.configuration as? CargoCommandConfiguration ?: return
+            val holder = config.parametersHolder ?: return
+            val command = StringBuilder()
+//            holder.toolchain?.let { command.append("+$it") }
+            holder.command?.let { command.append(" $it") }
+            command.append(holder.commandParameters.printParameters())
+            if (value.isNotBlank()) {
+                command.append(" -- ")
+                command.append(value)
+            }
+            config.programParameters = command.toString()
+        }
+    }
+}

@@ -1,0 +1,52 @@
+name: verify-template.yml
+on:
+  workflow_call:
+    inputs:
+      ide-code:
+        description: 'IDE code to verify plugin against '
+        required: true
+        type: string
+
+      java-version:
+        description: 'Java version to use for verifying plugin'
+        required: false
+        type: number
+        default: 21
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Maximize Build Space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          large-packages: false
+
+      - name: Fetch Sources
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: ${{ inputs.java-version }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Run Plugin Verification tasks
+        env:
+          PLUGIN_VERIFY_IDE: ${{ inputs.ide-code }}
+
+        run: ./gradlew :cmdlineargs-plugin:verifyPlugin
+
+      - name: Collect Plugin Verifier Result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pluginVerifier-${{ inputs.ide-code }}-result
+          path: ${{ github.workspace }}/build/cmdlineargs-plugin/reports/pluginVerifier

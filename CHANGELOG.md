@@ -1,8 +1,20 @@
 <!-- Keep a Changelog guide -> https://keepachangelog.com -->
 
-# CommandlineArgumentsWCheckboxes Changelog
+# Command-Line Arguments Changelog
 
 ## Unreleased
+
+### Added
+
+- 2026.1 support
+- Run configuration arguments preview
+- CLion, Java/Kotlin, Python, Rust support
+
+### Changed
+
+- State file renamed from <solution>.ddargs.json to <solution>.cmdlineargs.json for Rider
+
+## 2.1.5 - 2025-11-12
 
 ### Changed
 

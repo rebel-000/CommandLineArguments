@@ -1,0 +1,4 @@
+<idea-plugin>
+    <resource-bundle>messages.CommandlineArgsBundle</resource-bundle>
+    <depends optional="true" config-file="ext-rider-cpp.xml">com.jetbrains.rider-cpp</depends>
+</idea-plugin>
