@@ -6,6 +6,16 @@
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+## 3.0.1 - 2026-04-05
+
+### Added
+
 - 2026.1 support
 - Run configuration arguments preview
 - CLion, Java/Kotlin, Python, Rust support
