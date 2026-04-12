@@ -12,6 +12,10 @@
 
 ### Fixed
 
+- Arguments are not invalidated on rider config/platform changed
+- Argument filters did not work with Rider uproject run configurations
+- Filters: match by name without config type
+
 ## 3.0.1 - 2026-04-05
 
 ### Added
