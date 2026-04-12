@@ -1,20 +1,19 @@
 package com.github.rebel000.cmdlineargs.provider.rider
 
 import com.github.rebel000.cmdlineargs.ArgumentsService
-import com.github.rebel000.cmdlineargs.extensions.PlatformExtension
+import com.github.rebel000.cmdlineargs.extensions.RiderPlatformExtension
 import com.github.rebel000.cmdlineargs.FilterDefinition
 import com.github.rebel000.cmdlineargs.getQualifiedFilterName
 import com.github.rebel000.cmdlineargs.provider.rider.resources.RiderMessages
 import com.github.rebel000.cmdlineargs.resources.Messages
 import com.intellij.execution.RunManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.rd.createLifetime
 import com.jetbrains.rd.ui.bedsl.extensions.valueOrEmpty
 import com.jetbrains.rider.projectView.solution
 import java.util.TreeSet
 
-class RiderPlatformExtension : PlatformExtension {
-    override fun isRider(): Boolean = true
-
+class MyRiderPlatformExtension : RiderPlatformExtension {
     override fun getFilters(project: Project): List<FilterDefinition> {
         val service = ArgumentsService.getInstance(project)
         val rcNameFilters = TreeSet<String>()
@@ -57,5 +56,16 @@ class RiderPlatformExtension : PlatformExtension {
                 configurationFilters.toList()
             )
         )
+    }
+
+    override fun setupConfigurationCallback(project: Project, service: ArgumentsService, callback: () -> Unit) {
+        val service = ArgumentsService.getInstance(project)
+        project
+            .solution
+            .solutionProperties
+            .activeConfigurationPlatform
+            .advise(service.createLifetime()) {
+                callback()
+            }
     }
 }

@@ -1,7 +1,7 @@
 package com.github.rebel000.cmdlineargs
 
 import com.github.rebel000.cmdlineargs.extensions.ArgumentsAdapterProviderExtension
-import com.github.rebel000.cmdlineargs.extensions.PlatformExtension
+import com.github.rebel000.cmdlineargs.extensions.RiderPlatformExtension
 import com.github.rebel000.cmdlineargs.resources.Messages
 import com.github.rebel000.cmdlineargs.serialization.json.JsonObjectReader
 import com.github.rebel000.cmdlineargs.serialization.json.JsonObjectWriter
@@ -69,6 +69,9 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     private val projectStorage: ArgumentsProjectStorage.State get() = ArgumentsProjectStorage.getInstance(project).state
     private var stateFilePath: String? = null
 
+    internal val riderPlatformExtension: RiderPlatformExtension?
+        get() = RiderPlatformExtension.EP_NAME.extensionList.firstOrNull()
+
     internal val model: ArgumentTreeModel get() {
         ApplicationManager.getApplication().assertIsDispatchThread()
         return _model
@@ -119,6 +122,11 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     init {
         _model.addTreeModelListener(this)
         ApplicationManager.getApplication().invokeLater {
+            riderPlatformExtension?.setupConfigurationCallback(
+                project,
+                this,
+                this::onBuildConfigurationChanged
+            )
             reload()
             invalidate(arguments = true)
         }
@@ -140,9 +148,8 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     }
 
     fun getFilters(): List<FilterDefinition> {
-        val customFilters = PlatformExtension.EP_NAME.extensionList.firstNotNullOfOrNull { it.getFilters(project) }
-        if (customFilters != null) {
-            return customFilters
+        riderPlatformExtension?.getFilters(project)?.let {
+            return it
         }
         val rcNameFilters = TreeSet<String>()
         val rcQualifiedNameFilters = TreeSet<String>()
@@ -179,6 +186,10 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
             projectStorage.trustedConfigTypes.remove(typeID)
         }
         invalidate(preview = true)
+    }
+
+    internal fun onBuildConfigurationChanged() {
+        invalidate(arguments = true, preview = true)
     }
 
     internal fun onConfigurationsVisibilityChanged(invalidateTrust: Boolean) {
@@ -363,7 +374,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
 
     private fun locateStateFile(): String? {
         val basePath = project.basePath ?: return null
-        if (PlatformExtension.EP_NAME.extensions.any { it.isRider() }) {
+        if (riderPlatformExtension != null) {
             val riderConfig = Path(basePath).resolve(project.name + ".cmdlineargs.json")
             Path(basePath).resolve(project.name + ".ddargs.json").let { oldConfig ->
                 if (!riderConfig.exists() && oldConfig.exists()) {

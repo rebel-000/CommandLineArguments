@@ -19,8 +19,8 @@
         <extensionPoint qualifiedName="com.github.rebel000.cmdlineargs.extensions.adapterProvider"
                         interface="com.github.rebel000.cmdlineargs.extensions.ArgumentsAdapterProviderExtension"
                         dynamic="true" />
-        <extensionPoint qualifiedName="com.github.rebel000.cmdlineargs.extensions.platformExtension"
-                        interface="com.github.rebel000.cmdlineargs.extensions.PlatformExtension"
+        <extensionPoint qualifiedName="com.github.rebel000.cmdlineargs.extensions.riderPlatformExtension"
+                        interface="com.github.rebel000.cmdlineargs.extensions.RiderPlatformExtension"
                         dynamic="true" />
     </extensionPoints>
 
