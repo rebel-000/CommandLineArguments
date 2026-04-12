@@ -4,12 +4,6 @@
 
 ## Unreleased
 
-### Added
-
-### Changed
-
-### Removed
-
 ### Fixed
 
 - Arguments are not invalidated on rider config/platform changed
