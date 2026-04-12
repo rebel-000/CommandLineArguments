@@ -4,6 +4,16 @@
 
 ## Unreleased
 
+### Added
+
+### Changed
+
+### Removed
+
+### Fixed
+
+## 3.0.2 - 2026-04-12
+
 ### Fixed
 
 - Arguments are not invalidated on rider config/platform changed
