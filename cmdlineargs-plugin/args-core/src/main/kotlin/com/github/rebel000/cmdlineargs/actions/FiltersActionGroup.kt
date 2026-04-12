@@ -41,7 +41,7 @@ internal class FiltersActionGroup : DefaultActionGroup() {
 
         override fun isSelected(e: AnActionEvent): Boolean = e.withArgumentDataContext(false) {
             tree.forEachSelectedNodeNoRecursion<ArgumentNode> {
-                if (it.filters[key]?.contains(value) == true) {
+                if (it.hasFilter(key, value)) {
                     return true
                 }
             }

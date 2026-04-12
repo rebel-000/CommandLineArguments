@@ -14,12 +14,14 @@ internal abstract class RiderArgumentsAdapter(s: RunnerAndConfigurationSettings)
         val activeConfigurationPlatform = configuration.project.solution.solutionProperties.activeConfigurationPlatform()
         val activeConfiguration = activeConfigurationPlatform?.configuration ?: ""
         val activePlatform = activeConfigurationPlatform?.platform ?: ""
-        val name = settings.getQualifiedFilterName()
+        val qualifiedFilterName = settings.getQualifiedFilterName()
         return {
-            val runConfigurationFilters = it.filters["runConfiguration"].orEmpty()
-            val platformFilters = it.filters["platform"].orEmpty()
-            val configurationFilters = it.filters["configuration"].orEmpty()
-            val passRunConfigurationFilter = runConfigurationFilters.isEmpty() || runConfigurationFilters.any{ f -> name.matchesWildcard(f) }
+            val runConfigurationFilters = it.getFilter("runConfiguration")
+            val platformFilters = it.getFilter("platform")
+            val configurationFilters = it.getFilter("configuration")
+            val passRunConfigurationFilter = runConfigurationFilters.isEmpty() || runConfigurationFilters.any{ f -> 
+                qualifiedFilterName.matchesWildcard(f) || settings.name.matchesWildcard(f) 
+            }
             val passPlatformFilter = platformFilters.isEmpty() || platformFilters.any{ f -> activePlatform.matchesWildcard(f) }
             val passConfigurationFilter = configurationFilters.isEmpty() || configurationFilters.any{ f -> activeConfiguration.matchesWildcard(f) }
             passRunConfigurationFilter && passPlatformFilter && passConfigurationFilter

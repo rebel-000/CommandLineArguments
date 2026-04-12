@@ -28,7 +28,7 @@ internal class PropertiesFilterGroup(private val definition: FilterDefinition, n
     val checkboxGroup: JPanel
 
     init {
-        val items = node.filters[key].orEmpty()
+        val items = node.getFilter(key)
         field.setEmptyState(definition.desc)
         field.text = items.joinToString("; ")
         field.document.addDocumentListener(object : DocumentListener {
@@ -75,11 +75,11 @@ internal class PropertiesFilterGroup(private val definition: FilterDefinition, n
         }
     }
 
-    fun items(): MutableSet<String> = field.text
+    fun items(): List<String> = field.text
         .splitToSequence(';')
         .map(String::trim)
         .filter(String::isNotEmpty)
-        .toMutableSet()
+        .toList()
 
     private fun onTextChanged() {
         if (!suspended) {

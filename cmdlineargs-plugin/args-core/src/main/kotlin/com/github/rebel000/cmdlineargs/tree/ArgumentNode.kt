@@ -9,7 +9,7 @@ import javax.swing.Icon
 import javax.swing.tree.MutableTreeNode
 
 class ArgumentNode(name: String) : ArgumentContainer(name) {
-    private var _filtersValue: MutableMap<String, MutableSet<String>> = mutableMapOf()
+    private var _filters: MutableMap<String, MutableSet<String>> = mutableMapOf()
     private var _filtersString: String? = null
     var description: String = ""
     var isFolder: Boolean = false
@@ -21,17 +21,10 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
     var joinPostfix: String = ""
     var state: ThreeStateCheckBox.State = ThreeStateCheckBox.State.SELECTED; private set
 
-    var filters: MutableMap<String, MutableSet<String>>
-        get() = _filtersValue
-        set(value) {
-            _filtersValue = value
-            _filtersString = null
-        }
-
     val filtersString: String
         get() {
             return _filtersString
-                ?: filters
+                ?: _filters
                     .asSequence()
                     .joinToString(" ") { it.value.joinToString(" ") }
                     .also { _filtersString = it }
@@ -58,16 +51,37 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
             }
         }
         set(_) {}
-    
-    internal fun addFilter(key: String, value: String) {
-        val values = filters.getOrPut(key) { mutableSetOf() }
+
+    fun hasFilters(): Boolean = _filters.any { it.value.isNotEmpty() }
+
+    fun hasFilter(key: String, value: String?): Boolean {
+        return if (value != null) {
+            _filters[key]?.contains(value) == true
+        } else {
+            _filters[key]?.isNotEmpty() == true
+        }
+    }
+
+    fun getFilter(key: String): Set<String> = _filters[key].orEmpty()
+
+    fun addFilter(key: String, value: String) {
+        val values = _filters.getOrPut(key) { mutableSetOf() }
         values.add(value)
         _filtersString = null
     }
 
-    internal fun removeFilter(key: String, value: String) {
-        filters[key]?.remove(value)
+    fun removeFilter(key: String, value: String) {
+        _filters[key]?.remove(value)
         _filtersString = null
+    }
+
+    fun setFilter(key: String, values: List<String>) {
+        _filters[key] = values.toMutableSet()
+        _filtersString = null
+    }
+
+    internal fun validateFilters(filters: Set<String>) {
+        _filters = _filters.filter { it.key in filters }.toMutableMap()
     }
 
     private fun check() {
@@ -168,9 +182,9 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
         obj["name"] = text
         if (description.isNotBlank()) { obj["desc"] = description }
         if (isChecked) { obj["checked"] = true }
-        if (filters.isNotEmpty()) {
+        if (_filters.isNotEmpty()) {
             obj.addObject("filters").let {
-                for ((key, values) in filters) {
+                for ((key, values) in _filters) {
                     val filterValues = it.addArray(key, values.size)
                     for (value in values) {
                         filterValues.add(value)
@@ -206,7 +220,7 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
         val oFilters = obj["filters"].asObject
         if (oFilters != null) {
             if (revision >= 3) {
-                filters = mutableMapOf()
+                _filters.clear()
                 for ((key, value) in oFilters) {
                     value.asArray?.let { items ->
                         items.iterator()
@@ -215,13 +229,13 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
                             .toMutableSet()
                             .let {
                                 if (it.isNotEmpty()) {
-                                    filters[key] = it
+                                    _filters[key] = it
                                 }
                             }
                     }
                 }
             } else {
-                filters = mutableMapOf()
+                _filters.clear()
                 for ((key, value) in oFilters) {
                     value.asString?.let { value ->
                         value
@@ -232,7 +246,7 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
                             .toMutableSet()
                             .let {
                                 if (it.isNotEmpty()) {
-                                    filters[key] = it
+                                    _filters[key] = it
                                 }
                             }
                     }

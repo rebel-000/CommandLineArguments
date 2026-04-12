@@ -1,7 +1,7 @@
 package com.github.rebel000.cmdlineargs
 
 import com.github.rebel000.cmdlineargs.extensions.ArgumentsAdapterProviderExtension
-import com.github.rebel000.cmdlineargs.extensions.PlatformExtension
+import com.github.rebel000.cmdlineargs.extensions.RiderPlatformExtension
 import com.github.rebel000.cmdlineargs.resources.Messages
 import com.github.rebel000.cmdlineargs.serialization.json.JsonObjectReader
 import com.github.rebel000.cmdlineargs.serialization.json.JsonObjectWriter
@@ -69,6 +69,9 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     private val projectStorage: ArgumentsProjectStorage.State get() = ArgumentsProjectStorage.getInstance(project).state
     private var stateFilePath: String? = null
 
+    internal val riderPlatformExtension: RiderPlatformExtension?
+        get() = RiderPlatformExtension.EP_NAME.extensionList.firstOrNull()
+
     internal val model: ArgumentTreeModel get() {
         ApplicationManager.getApplication().assertIsDispatchThread()
         return _model
@@ -119,6 +122,11 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     init {
         _model.addTreeModelListener(this)
         ApplicationManager.getApplication().invokeLater {
+            riderPlatformExtension?.setupConfigurationCallback(
+                project,
+                this,
+                this::onBuildConfigurationChanged
+            )
             reload()
             invalidate(arguments = true)
         }
@@ -140,21 +148,25 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     }
 
     fun getFilters(): List<FilterDefinition> {
-        val customFilters = PlatformExtension.EP_NAME.extensionList.firstNotNullOfOrNull { it.getFilters(project) }
-        if (customFilters != null) {
-            return customFilters
+        riderPlatformExtension?.getFilters(project)?.let {
+            return it
         }
+        val rcNameFilters = TreeSet<String>()
+        val rcQualifiedNameFilters = TreeSet<String>()
+        RunManager.getInstanceIfCreated(project)
+            ?.allSettings
+            ?.forEach { s ->
+                if (getAdapter(s) != null) {
+                    rcNameFilters.add(s.name)
+                    rcQualifiedNameFilters.add(s.getQualifiedFilterName())
+                }
+            }
         return listOf(
             FilterDefinition(
                 "runConfiguration",
                 Messages.message("properties.runConfigurationFilters"),
                 Messages.message("properties.runConfigurationFilters.desc"),
-                RunManager.getInstanceIfCreated(project)
-                    ?.allSettings
-                    .orEmpty()
-                    .mapNotNull { 
-                        it.takeIf { getAdapter(it) != null }?.getQualifiedFilterName()
-                    }.distinct()
+                rcNameFilters.toList() + rcQualifiedNameFilters.toList()
             )
         )
     }
@@ -174,6 +186,10 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
             projectStorage.trustedConfigTypes.remove(typeID)
         }
         invalidate(preview = true)
+    }
+
+    internal fun onBuildConfigurationChanged() {
+        invalidate(arguments = true, preview = true)
     }
 
     internal fun onConfigurationsVisibilityChanged(invalidateTrust: Boolean) {
@@ -301,7 +317,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
             XmlObjectReader(projectStorage.projectArguments)
         }
         reader?.let { reader ->
-            val filters = getFilters().map { it.key }
+            val filters = buildSet { getFilters().forEach { add(it.key) }}
             val revision = reader["revision"].asInt ?: reader["version"].asInt ?: 0
             if (revision >= 3) {
                 isEnabled = reader["enabled"].asBoolean ?: true
@@ -309,7 +325,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
                 reader["root"].asObject?.let { root ->
                     model.projectRoot.deserialize(root, revision) { node ->
                         if (node is ArgumentNode) {
-                            node.filters = node.filters.filter { it.key in filters }.toMutableMap()
+                            node.validateFilters(filters)
                         }
                     }
                 }
@@ -318,7 +334,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
                 model.previewRoot.isExpanded = true
                 model.projectRoot.deserialize(reader, revision) { node ->
                     if (node is ArgumentNode) {
-                        node.filters = node.filters.filter { it.key in filters }.toMutableMap()
+                        node.validateFilters(filters)
                     }
                 }
             }
@@ -358,7 +374,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
 
     private fun locateStateFile(): String? {
         val basePath = project.basePath ?: return null
-        if (PlatformExtension.EP_NAME.extensions.any { it.isRider() }) {
+        if (riderPlatformExtension != null) {
             val riderConfig = Path(basePath).resolve(project.name + ".cmdlineargs.json")
             Path(basePath).resolve(project.name + ".ddargs.json").let { oldConfig ->
                 if (!riderConfig.exists() && oldConfig.exists()) {
@@ -404,10 +420,10 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
         reader?.let { reader ->
             ArgumentContainer(Messages.message("toolwindow.sharedNode")).also {  node ->
                 model.sharedRoot = node
-                val filters = getFilters().map { it.key }
+                val filters = buildSet { getFilters().forEach { add(it.key) }}
                 node.deserialize(reader, revision) { node ->
                     if (node is ArgumentNode) {
-                        node.filters = node.filters.filter { it.key in filters }.toMutableMap()
+                        node.validateFilters(filters)
                     }
                 }.let { if (!it) { project.thisLogger().warn("[com.github.rebel000.cmdlineargs] Failed to deserialize shared arguments") }}
             }
@@ -473,7 +489,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
                     visitors.add(it.adapter to CollectArgsVisitor(it.adapter.predicate()))
                 }
             }
-            visitors.add(null to CollectArgsVisitor { it.filters.all { (_, f) -> f.isEmpty() } })
+            visitors.add(null to CollectArgsVisitor { !it.hasFilters() })
             val multiVisitor = object : TraverseVisitor<ArgumentNode> {
                 private val skip = IntArray(visitors.size) { 0 }
                 override fun onEnter(node: ArgumentNode): Boolean {

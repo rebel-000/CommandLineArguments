@@ -159,8 +159,9 @@ internal class PropertiesDialog(private val project: Project, private val node: 
 
     override fun doOKAction() {
         applyTo(node)
-        node.filters.clear()
-        filterGroups.associateTo(node.filters) { Pair(it.key, it.items()) }
+        filterGroups.forEach {
+            node.setFilter(it.key, it.items())
+        }
         saveDimensions()
         super.doOKAction()
     }
@@ -169,6 +170,5 @@ internal class PropertiesDialog(private val project: Project, private val node: 
         saveDimensions()
         super.doCancelAction()
     }
-
 }
 

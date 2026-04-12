@@ -7,7 +7,7 @@ import javax.swing.tree.TreeModel
 import javax.swing.tree.TreeNode
 import javax.swing.tree.TreePath
 
-internal class ArgumentTreeModel() : TreeModel {
+internal class ArgumentTreeModel : TreeModel {
     private val listenerList = mutableListOf<TreeModelListener>()
     private val treeRoot = ArgumentTreeNodeBase("treeRoot")
     private var _projectRoot: ArgumentContainer = ArgumentContainer(Messages.message("toolwindow.projectNode"))

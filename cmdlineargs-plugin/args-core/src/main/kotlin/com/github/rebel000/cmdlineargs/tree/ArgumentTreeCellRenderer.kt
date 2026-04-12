@@ -80,7 +80,7 @@ internal class ArgumentTreeCellRenderer : CheckboxTree.CheckboxTreeCellRenderer(
             if (value is ArgumentNode) {
                 threeStateCheckBox.state = value.state
                 radioButton.isSelected = value.state != ThreeStateCheckBox.State.NOT_SELECTED
-                if (value.filters.isNotEmpty()) {
+                if (value.hasFilters()) {
                     textRenderer.append("${value.filtersString} ", SimpleTextAttributes.GRAYED_BOLD_ATTRIBUTES)
                 }
                 textRenderer.append(value.description, SimpleTextAttributes.GRAYED_ITALIC_ATTRIBUTES)
