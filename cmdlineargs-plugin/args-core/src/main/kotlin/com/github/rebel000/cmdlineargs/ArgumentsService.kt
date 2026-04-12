@@ -144,17 +144,22 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
         if (customFilters != null) {
             return customFilters
         }
+        val rcNameFilters = TreeSet<String>()
+        val rcQualifiedNameFilters = TreeSet<String>()
+        RunManager.getInstanceIfCreated(project)
+            ?.allSettings
+            ?.forEach { s ->
+                if (getAdapter(s) != null) {
+                    rcNameFilters.add(s.name)
+                    rcQualifiedNameFilters.add(s.getQualifiedFilterName())
+                }
+            }
         return listOf(
             FilterDefinition(
                 "runConfiguration",
                 Messages.message("properties.runConfigurationFilters"),
                 Messages.message("properties.runConfigurationFilters.desc"),
-                RunManager.getInstanceIfCreated(project)
-                    ?.allSettings
-                    .orEmpty()
-                    .mapNotNull { 
-                        it.takeIf { getAdapter(it) != null }?.getQualifiedFilterName()
-                    }.distinct()
+                rcNameFilters.toList() + rcQualifiedNameFilters.toList()
             )
         )
     }
@@ -301,7 +306,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
             XmlObjectReader(projectStorage.projectArguments)
         }
         reader?.let { reader ->
-            val filters = getFilters().map { it.key }
+            val filters = buildSet { getFilters().forEach { add(it.key) }}
             val revision = reader["revision"].asInt ?: reader["version"].asInt ?: 0
             if (revision >= 3) {
                 isEnabled = reader["enabled"].asBoolean ?: true
@@ -309,7 +314,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
                 reader["root"].asObject?.let { root ->
                     model.projectRoot.deserialize(root, revision) { node ->
                         if (node is ArgumentNode) {
-                            node.filters = node.filters.filter { it.key in filters }.toMutableMap()
+                            node.validateFilters(filters)
                         }
                     }
                 }
@@ -318,7 +323,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
                 model.previewRoot.isExpanded = true
                 model.projectRoot.deserialize(reader, revision) { node ->
                     if (node is ArgumentNode) {
-                        node.filters = node.filters.filter { it.key in filters }.toMutableMap()
+                        node.validateFilters(filters)
                     }
                 }
             }
@@ -404,10 +409,10 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
         reader?.let { reader ->
             ArgumentContainer(Messages.message("toolwindow.sharedNode")).also {  node ->
                 model.sharedRoot = node
-                val filters = getFilters().map { it.key }
+                val filters = buildSet { getFilters().forEach { add(it.key) }}
                 node.deserialize(reader, revision) { node ->
                     if (node is ArgumentNode) {
-                        node.filters = node.filters.filter { it.key in filters }.toMutableMap()
+                        node.validateFilters(filters)
                     }
                 }.let { if (!it) { project.thisLogger().warn("[com.github.rebel000.cmdlineargs] Failed to deserialize shared arguments") }}
             }
@@ -473,7 +478,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
                     visitors.add(it.adapter to CollectArgsVisitor(it.adapter.predicate()))
                 }
             }
-            visitors.add(null to CollectArgsVisitor { it.filters.all { (_, f) -> f.isEmpty() } })
+            visitors.add(null to CollectArgsVisitor { !it.hasFilters() })
             val multiVisitor = object : TraverseVisitor<ArgumentNode> {
                 private val skip = IntArray(visitors.size) { 0 }
                 override fun onEnter(node: ArgumentNode): Boolean {

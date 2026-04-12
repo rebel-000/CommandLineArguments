@@ -8,8 +8,7 @@ abstract class ArgumentsAdapter(settings: RunnerAndConfigurationSettings) {
     companion object {
         fun runConfigurationPredicate(name: String): ((ArgumentNode) -> Boolean) {
             return { node: ArgumentNode ->
-                node.filters["runConfiguration"]
-                    .orEmpty()
+                node.getFilter("runConfiguration")
                     .let { filter -> filter.isEmpty() || filter.any{ name.matchesWildcard(it) } }
             }
         }
