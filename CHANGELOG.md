@@ -6,11 +6,16 @@
 
 ### Added
 
+- 2026.2 support
+
 ### Changed
 
 ### Removed
 
 ### Fixed
+
+- Arguments are not invalidated on config reload
+- Run Configurations is not listed after the project is loaded (issue#46)
 
 ## 3.0.2 - 2026-04-12
 
