@@ -22,10 +22,4 @@ internal class MyRunManagerListener(private val project: Project) : RunManagerLi
     override fun runConfigurationSelected(s: RunnerAndConfigurationSettings?) {
         ArgumentsService.getInstance(project).onRunConfigurationSelected(s)
     }
-
-    override fun stateLoaded(runManager: RunManager, isFirstLoadState: Boolean) {
-        if (!project.isDefault) {
-            ArgumentsService.getInstance(project).onRunManagerLoaded(runManager)
-        }
-    }
 }

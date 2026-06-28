@@ -53,7 +53,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     @Volatile
     private var _isEnabled = true
     @Volatile
-    private var _isRunManagerLoaded = false
+    private var _isProjectLoaded = false
     @Volatile
     private var _isSharedEnabled = false
     @Volatile
@@ -128,7 +128,6 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
                 this::onBuildConfigurationChanged
             )
             reload()
-            invalidate(arguments = true)
         }
     }
 
@@ -302,10 +301,11 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
         }
     }
 
-    @Suppress("unused")
-    internal fun onRunManagerLoaded(runManager: RunManager) {
-        _isRunManagerLoaded = true
-        invalidate(arguments = true, preview = true)
+    internal fun onProjectLoaded() {
+        _isProjectLoaded = true
+        ApplicationManager.getApplication().invokeLater {
+            invalidate(arguments = true, preview = true)
+        }
     }
 
     internal fun reload() {
@@ -343,6 +343,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
             reloadShared()
         }
         model.invalidate()
+        invalidate(arguments = true)
     }
 
     private fun createAdapter(s: RunnerAndConfigurationSettings, isRunningCurrentFile: Boolean): ArgumentsAdapter? {
@@ -352,7 +353,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     }
 
     private fun invalidate(arguments: Boolean = false, preview: Boolean = false) {
-        if (!_isRunManagerLoaded) {
+        if (!_isProjectLoaded) {
             return
         }
         if (arguments && _isArgumentsInvalid.compareAndSet(false, true)) {

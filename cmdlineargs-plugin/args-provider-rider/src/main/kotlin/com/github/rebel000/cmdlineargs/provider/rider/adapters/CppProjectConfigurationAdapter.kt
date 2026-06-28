@@ -35,8 +35,6 @@ internal class CppProjectConfigurationAdapter(s: RunnerAndConfigurationSettings)
             if (parametersMap::class.java.name != MutableConfigurationAndPlatformParametersMap::class.java.name) return null
             val configurationPlatform = config.project.solution.solutionProperties.activeConfigurationPlatform.value ?: return null
             val getParameters = parametersMap::class.java.getDeclaredMethod("getPreSetupParametersForConfigurationAndPlatform", String::class.java, String::class.java)
-//            val internalClass = Class.forName("com.jetbrains.rider.cpp.run.configurations.MutableConfigurationAndPlatformParametersMap")
-//            val getPreSetupParametersForConfigurationAndPlatform = internalClass.getMethod("getPreSetupParametersForConfigurationAndPlatform", String::class.java, String::class.java)
             return getParameters.invoke(parametersMap, configurationPlatform.configuration, configurationPlatform.platform) as? MutableConfigurationParameters
         } catch (_: Exception) {
             return null

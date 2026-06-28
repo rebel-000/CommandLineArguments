@@ -12,6 +12,7 @@ dependencies {
                 useCache = true
             }
             compatiblePlugins("com.jetbrains.rust")
+//            compatiblePlugins("intellij.platform.testRunner")
         } else {
             create(IntelliJPlatformType.RustRover, ppString("platform.version")) {
                 useInstaller = false
@@ -19,6 +20,7 @@ dependencies {
             }
 
             bundledPlugins("com.jetbrains.rust")
+            bundledModule("intellij.platform.testRunner")
         }
         jetbrainsRuntime()
     }

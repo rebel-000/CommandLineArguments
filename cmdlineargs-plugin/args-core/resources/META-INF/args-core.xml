@@ -7,10 +7,6 @@
     <depends optional="true" config-file="ext-kotlin.xml">org.jetbrains.kotlin</depends>
     <depends optional="true" config-file="ext-sh.xml">com.jetbrains.sh</depends>
 
-    <extensions defaultExtensionNs="org.jetbrains.kotlin">
-        <supportsKotlinPluginMode supportsK2="true" />
-    </extensions>
-
     <resource-bundle>messages.CommandlineArgsBundle</resource-bundle>
 
     <xi:include href="args-actions.xml" />
@@ -32,6 +28,7 @@
     </projectListeners>
 
     <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="com.github.rebel000.cmdlineargs.listeners.MyStartupActivity"/>
         <toolWindow id="cmdlineargs"
                     anchor="right"
                     secondary="true"

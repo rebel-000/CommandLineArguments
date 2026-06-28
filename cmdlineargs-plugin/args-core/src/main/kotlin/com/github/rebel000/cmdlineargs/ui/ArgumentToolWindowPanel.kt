@@ -15,6 +15,7 @@ import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.ui.ScrollPaneFactory
 import javax.swing.event.TreeModelEvent
 import javax.swing.event.TreeModelListener
+import javax.swing.tree.TreePath
 
 internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowPanel(true), TreeModelListener, Disposable {
     private val context: ArgumentDataContext
@@ -75,8 +76,14 @@ internal class ArgumentToolWindowPanel(val project: Project) : SimpleToolWindowP
     override fun treeNodesInserted(e: TreeModelEvent?) = Unit
     override fun treeNodesRemoved(e: TreeModelEvent?) = Unit
     override fun treeStructureChanged(e: TreeModelEvent?) {
-        if (e?.treePath?.lastPathComponent === tree.model.root) {
+        val node = e?.treePath?.lastPathComponent as? ArgumentTreeNodeBase
+        if (node === tree.model.root) {
             restoreExpand()
+        }
+        else if (node?.isExpanded == true) {
+            ApplicationManager.getApplication().invokeLater {
+                tree.expandPath(TreePath(node.path))
+            }
         }
     }
 }

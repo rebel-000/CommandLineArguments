@@ -256,7 +256,7 @@ class ArgumentNode(name: String) : ArgumentContainer(name) {
         isChecked = obj["checked"].asBoolean ?: false
         isExpanded = obj["expanded"].asBoolean ?: false
         removeAllChildren()
-        obj.get("items").asArray?.let { items ->
+        obj["items"].asArray?.let { items ->
             isFolder = revision >= 3 || items.count() > 0
             if (isFolder) {
                 join = obj["join"].asBoolean ?: false
