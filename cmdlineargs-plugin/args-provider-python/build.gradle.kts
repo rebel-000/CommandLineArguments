@@ -7,17 +7,16 @@ plugins {
 dependencies {
     intellijPlatform{
         if (tryGetPluginProperty("minimal-build-environment")?.toBoolean() == true) {
-            create(IntelliJPlatformType.IntellijIdea, ppString("platform.version")) {
+            create(IntelliJPlatformType.IntellijIdea, ppString("platform.iu-version")) {
                 useInstaller = false
                 useCache = true
             }
             compatiblePlugins("PythonCore")
         } else {
-            create(IntelliJPlatformType.PyCharm, ppString("platform.version")) {
+            create(IntelliJPlatformType.PyCharm, ppString("platform.py-version")) {
                 useInstaller = false
                 useCache = true
             }
-
             bundledPlugins("PythonCore")
         }
         jetbrainsRuntime()

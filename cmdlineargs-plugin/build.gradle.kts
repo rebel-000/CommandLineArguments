@@ -16,8 +16,9 @@ plugins {
 
 dependencies {
     intellijPlatform {
-        create(IntelliJPlatformType.IntellijIdea, ppString("platform.version")) {
+        create(IntelliJPlatformType.IntellijIdea, ppString("platform.iu-version")) {
             useInstaller = false
+            useCache = true
         }
 
         pluginComposedModule(implementation(project("args-core")))
@@ -35,8 +36,6 @@ changelog {
         repositoryUrl = it
     }
 }
-
-version = ppString("version")
 
 intellijPlatform {
     projectName = "CommandLineArguments"
@@ -101,13 +100,20 @@ intellijPlatform {
                 IntelliJPlatformType.CLion,
                 IntelliJPlatformType.PyCharmProfessional,
                 IntelliJPlatformType.Rider,
-                IntelliJPlatformType.RustRover,
-            )
-            select {
-                channels = listOf(Channel.RELEASE, Channel.EAP, Channel.RC)
-                types.convention(ideList.filter { verifyIdeList.isEmpty() || it.code.lowercase() in verifyIdeList })
-                sinceBuild = ppString("sinceBuild")
-                untilBuild = ppString("untilBuild")
+//                IntelliJPlatformType.RustRover,
+            ).filter { verifyIdeList.isEmpty() || it.code.lowercase() in verifyIdeList }
+            ideList.forEach { type ->
+                select {
+                    channels = listOf(Channel.RELEASE/*, Channel.EAP, Channel.RC*/)
+                    types.convention(listOf(type))
+                    sinceBuild = ppString("verify.sinceBuild")
+                    untilBuild = ppString("verify.untilBuild")
+                }
+                ppWithList("verify.${type.code.lowercase()}-version") {
+                    it.forEach { version ->
+                        create(type, version)
+                    }
+                }
             }
         }
     }
@@ -187,7 +193,7 @@ fun IntelliJPlatformTestingExtension.runPluginWithIdeTask(
     runIde.register("runPluginWith$name", Action {
         this.useInstaller = false
         this.type = type
-        this.version = ppString("platform.version")
+        this.version = ppString("platform.${type.code.lowercase()}-version")
         this.sandboxDirectory = intellijPlatform.sandboxContainer.dir("${name.lowercase()}-sandbox")
         configure()
     })

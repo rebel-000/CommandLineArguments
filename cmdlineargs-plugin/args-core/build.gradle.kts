@@ -6,11 +6,10 @@ plugins {
 
 dependencies {
     intellijPlatform{
-        create(IntelliJPlatformType.IntellijIdea, ppString("platform.version")) {
+        create(IntelliJPlatformType.IntellijIdea, ppString("platform.iu-version")) {
             useInstaller = false
             useCache = true
         }
-
         bundledPlugins("com.intellij.java")
         bundledPlugins("com.jetbrains.sh")
         bundledPlugins("org.jetbrains.kotlin")

@@ -6,7 +6,7 @@ plugins {
 
 dependencies {
     intellijPlatform{
-        create(IntelliJPlatformType.Rider, ppString("rider.platform.version")) {
+        create(IntelliJPlatformType.Rider, ppString("platform.rd-version")) {
             useInstaller = false
             useCache = true
         }

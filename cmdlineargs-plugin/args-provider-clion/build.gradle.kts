@@ -7,13 +7,13 @@ plugins {
 dependencies {
     intellijPlatform{
         if (tryGetPluginProperty("minimal-build-environment")?.toBoolean() == true) {
-            create(IntelliJPlatformType.IntellijIdea, ppString("platform.version")) {
+            create(IntelliJPlatformType.IntellijIdea, ppString("platform.iu-version")) {
                 useInstaller = false
                 useCache = true
             }
             compatiblePlugins("com.intellij.clion", "com.intellij.cmake", "com.intellij.nativeDebug", "name.kropp.intellij.makefile", "org.jetbrains.plugins.clion.radler")
         } else {
-            create(IntelliJPlatformType.CLion, ppString("platform.version")) {
+            create(IntelliJPlatformType.CLion, ppString("platform.cl-version")) {
                 useInstaller = false
                 useCache = true
             }
