@@ -8,10 +8,6 @@
 
 - 2026.2 support
 
-### Changed
-
-### Removed
-
 ### Fixed
 
 - Arguments are not invalidated on config reload
