@@ -37,6 +37,8 @@ changelog {
     }
 }
 
+version = ppString("version")
+
 intellijPlatform {
     projectName = "CommandLineArguments"
     pluginConfiguration {

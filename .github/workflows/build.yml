@@ -74,7 +74,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.artifact.outputs.filename }}
-          path: ./build/cmdlineargs-plugin/distributions/content/*/*
+          path: ${{ github.workspace }}/build/cmdlineargs-plugin/distributions/content/*/*
 
   # Run tests and upload test reports on failure
   test:
@@ -117,7 +117,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: tests-result
-          path: ./build/cmdlineargs-plugin/reports/tests
+          path: ${{ github.workspace }}/build/cmdlineargs-plugin/reports/tests
 
   verify_IU:
     name: Verify plugin (Idea)
@@ -197,8 +197,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(./gradlew :cmdlineargs-plugin:properties --property plugin.version --quiet --console=plain | tail -n 1 | cut -f2- -d ' ')
-          RELEASE_NOTE="./build/tmp/release_note.txt"
+          VERSION=$(./gradlew :cmdlineargs-plugin:properties --property version --quiet --console=plain | tail -n 1 | cut -f2- -d ' ')
+          RELEASE_NOTE="${{ github.workspace }}/build/tmp/release_note.txt"
           ./gradlew :cmdlineargs-plugin:getChangelog --unreleased --no-header --quiet --console=plain --output-file=$RELEASE_NOTE
 
           gh release create "v$VERSION" \
