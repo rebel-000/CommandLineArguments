@@ -1,12 +1,11 @@
 package com.github.rebel000.cmdlineargs
 
+import com.github.rebel000.cmdlineargs.extensions.MultiLaunchPluginAdapter
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.compound.CompoundRunConfiguration
 import com.intellij.execution.impl.RunConfigurationBeforeRunProvider.RunConfigurableBeforeRunTask
 import com.intellij.execution.impl.RunManagerImpl
-import com.intellij.execution.multilaunch.MultiLaunchConfiguration
-import com.intellij.execution.multilaunch.execution.executables.impl.RunConfigurationExecutableManager
 import java.util.*
 
 fun RunnerAndConfigurationSettings.getQualifiedFilterName(): String {
@@ -35,8 +34,9 @@ fun RunnerAndConfigurationSettings.getEffectiveConfigurations(): Set<String> {
                     toProcess.add(s)
                 }
         }
-        when (val config = s.configuration) {
-            is CompoundRunConfiguration -> {
+        val config = s.configuration
+        when {
+            config is CompoundRunConfiguration -> {
                 val runManager = RunManager.getInstanceIfCreated(this.configuration.project)
                 val runManagerImpl = runManager as? RunManagerImpl
                 if (runManagerImpl != null) {
@@ -49,13 +49,10 @@ fun RunnerAndConfigurationSettings.getEffectiveConfigurations(): Set<String> {
                     toReturn.add(s.uniqueID)
                 }
             }
-            is MultiLaunchConfiguration -> {
-                config
-                    .descriptors
-                    .forEach {
-                        (it.executable as? RunConfigurationExecutableManager.RunConfigurationExecutable)
-                            ?.let { executable -> toProcess.add(executable.settings) }
-                    }
+            MultiLaunchPluginAdapter.isMultiLaunch(config) -> {
+                MultiLaunchPluginAdapter.foreachMultilaunchConfigs(config) {
+                    toProcess.add(it)
+                }
             }
             else -> {
                 toReturn.add(s.uniqueID)

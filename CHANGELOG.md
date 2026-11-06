@@ -6,6 +6,8 @@
 
 ### Added
 
+- 2026.3 support
+
 ### Changed
 
 ### Removed

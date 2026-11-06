@@ -1,6 +1,7 @@
 package com.github.rebel000.cmdlineargs
 
 import com.github.rebel000.cmdlineargs.extensions.ArgumentsAdapterProviderExtension
+import com.github.rebel000.cmdlineargs.extensions.MultiLaunchPluginAdapter
 import com.github.rebel000.cmdlineargs.extensions.RiderPlatformExtension
 import com.github.rebel000.cmdlineargs.resources.Messages
 import com.github.rebel000.cmdlineargs.serialization.json.JsonObjectReader
@@ -12,7 +13,6 @@ import com.github.rebel000.cmdlineargs.tree.visitors.CollectArgsVisitor
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.compound.CompoundRunConfiguration
-import com.intellij.execution.multilaunch.MultiLaunchConfiguration
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
@@ -237,7 +237,7 @@ class ArgumentsService(val project: Project, private val cs: CoroutineScope) : D
     }
 
     internal fun onRunConfigurationAdded(s: RunnerAndConfigurationSettings) {
-        if (s.configuration is CompoundRunConfiguration || s.configuration is MultiLaunchConfiguration) {
+        if (s.configuration is CompoundRunConfiguration || MultiLaunchPluginAdapter.isMultiLaunch(s.configuration)) {
             return
         }
         val uniqueID = s.uniqueID

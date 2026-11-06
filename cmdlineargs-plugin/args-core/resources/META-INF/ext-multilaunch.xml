@@ -1,0 +1,5 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.github.rebel000.cmdlineargs.extensions">
+        <multiLaunchProviderExtension implementation="com.github.rebel000.cmdlineargs.execution.multilaunch.MultiLaunchAdapter"/>
+    </extensions>
+</idea-plugin>

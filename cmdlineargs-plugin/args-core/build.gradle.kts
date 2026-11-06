@@ -10,11 +10,10 @@ dependencies {
             useInstaller = false
             useCache = true
         }
+        compatiblePlugins("intellij.execution.multilaunch")
         bundledPlugins("com.intellij.java")
         bundledPlugins("com.jetbrains.sh")
         bundledPlugins("org.jetbrains.kotlin")
         jetbrainsRuntime()
     }
-
-//    implementation(project(":cmdlineargs-plugin:args-core"))
 }

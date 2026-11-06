@@ -11,7 +11,7 @@ dependencies {
             useCache = true
         }
 
-        bundledPlugins("com.jetbrains.rider-cpp")
+        bundledPlugins("com.jetbrains.rider-cpp", "intellij.execution.multilaunch")
         bundledModule("intellij.rider.debugger.shared")
         jetbrainsRuntime()
     }
