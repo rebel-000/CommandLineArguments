@@ -8,12 +8,6 @@
 
 - 2026.3 support
 
-### Changed
-
-### Removed
-
-### Fixed
-
 ## [3.0.3] - 2026-07-03
 
 ### Added
