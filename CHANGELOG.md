@@ -6,6 +6,16 @@
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+## [3.0.4] - 2026-11-06
+
+### Added
+
 - 2026.3 support
 
 ## [3.0.3] - 2026-07-03
@@ -231,7 +241,8 @@
 
 - Initial release
 
-[Unreleased]: "https://github.com/rebel-000/CommandLineArguments"/compare/3.0.3...HEAD
+[Unreleased]: "https://github.com/rebel-000/CommandLineArguments"/compare/3.0.4...HEAD
+[3.0.4]: "https://github.com/rebel-000/CommandLineArguments"/compare/3.0.3...3.0.4
 [3.0.3]: "https://github.com/rebel-000/CommandLineArguments"/compare/3.0.2...3.0.3
 [3.0.2]: "https://github.com/rebel-000/CommandLineArguments"/compare/3.0.1...3.0.2
 [3.0.1]: "https://github.com/rebel-000/CommandLineArguments"/compare/2.1.5...3.0.1
